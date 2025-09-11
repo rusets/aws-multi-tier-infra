@@ -1,4 +1,4 @@
-# AWS Multi‑Tier Demo (Terraform + EC2 + ALB + RDS + CI/CD)
+# AWSsss Multi‑Tier Demo (Terraform + EC2 + ALB + RDS + CI/CD)
 
 This repository contains a **production‑like multi‑tier example** built with Terraform:
 - **VPC** with public subnets
