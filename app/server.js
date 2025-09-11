@@ -1,34 +1,31 @@
-// Import core modules
+// Minimal Express + PG app (single listen, health, safe migration)
+
 const express = require("express");
 const bodyParser = require("body-parser");
 const { Pool } = require("pg");
 const path = require("path");
 
-// Initialize Express application
 const app = express();
-
-// Middleware: parse JSON request bodies
 app.use(bodyParser.json());
-
-// Middleware: serve static files from /public folder
 app.use(express.static(path.join(__dirname, "public")));
 
-// Define the application port (default: 3000)
 const PORT = Number(process.env.PORT || 3000);
 
-// Create a PostgreSQL connection pool using environment variables
+// Accept both DB_PASSWORD and legacy DB_PASS
+const DB_PASSWORD = process.env.DB_PASSWORD || process.env.DB_PASS || "";
+
+// Postgres pool
 const pool = new Pool({
-  host: process.env.DB_HOST,          // Database host
-  user: process.env.DB_USER,          // Database user
-  password: process.env.DB_PASSWORD,  // Important: password comes from env
-  database: process.env.DB_NAME,      // Database name
-  port: 5432,                         // Default PostgreSQL port
-  ssl: { rejectUnauthorized: false }  // Required for RDS (SSL enabled)
+  host: process.env.DB_HOST,
+  user: process.env.DB_USER,
+  password: DB_PASSWORD,
+  database: process.env.DB_NAME,
+  port: 5432,
+  ssl: { rejectUnauthorized: false },
 });
 
-// Database migration: create or fix schema automatically
+// Idempotent schema migration
 async function migrate() {
-  // Ensure the "notes" table exists with correct columns
   await pool.query(`
     CREATE TABLE IF NOT EXISTS public.notes (
       id          bigserial PRIMARY KEY,
@@ -36,8 +33,6 @@ async function migrate() {
       created_at  timestamptz NOT NULL DEFAULT now()
     );
   `);
-
-  // If old "text" column exists → drop it (legacy cleanup)
   await pool.query(`
     DO $$
     BEGIN
@@ -49,15 +44,15 @@ async function migrate() {
       END IF;
     END $$;
   `);
-
-  // Create index for faster queries on created_at
-  await pool.query(`CREATE INDEX IF NOT EXISTS idx_notes_created_at ON public.notes (created_at DESC);`);
+  await pool.query(
+    `CREATE INDEX IF NOT EXISTS idx_notes_created_at ON public.notes (created_at DESC);`
+  );
 }
 
-// Health check endpoint
-app.get("/health", (_req, res) => res.send("ok"));
+// Health for ALB
+app.get("/health", (_req, res) => res.status(200).send("ok"));
 
-// Database connectivity check
+// DB probe
 app.get("/db", async (_req, res) => {
   try {
     await pool.query("select 1");
@@ -67,17 +62,17 @@ app.get("/db", async (_req, res) => {
   }
 });
 
-// Get latest 200 notes (ordered by ID descending)
+// API
 app.get("/api/notes", async (_req, res) => {
-  const r = await pool.query("SELECT id, title, created_at FROM public.notes ORDER BY id DESC LIMIT 200");
+  const r = await pool.query(
+    "SELECT id, title, created_at FROM public.notes ORDER BY id DESC LIMIT 200"
+  );
   res.json(r.rows);
 });
 
-// Create a new note
 app.post("/api/notes", async (req, res) => {
   const title = (req.body.title || "").trim();
   if (!title) return res.status(400).json({ error: "title required" });
-
   const r = await pool.query(
     "INSERT INTO public.notes(title) VALUES($1) RETURNING id, title, created_at",
     [title]
@@ -85,32 +80,23 @@ app.post("/api/notes", async (req, res) => {
   res.status(201).json(r.rows[0]);
 });
 
-// Delete a note by ID
 app.delete("/api/notes/:id", async (req, res) => {
   await pool.query("DELETE FROM public.notes WHERE id=$1", [req.params.id]);
   res.status(204).end();
 });
 
-// Serve frontend index page
-app.get("/", (_req, res) => res.sendFile(path.join(__dirname, "public/index.html")));
+// Index
+app.get("/", (_req, res) =>
+  res.sendFile(path.join(__dirname, "public/index.html"))
+);
 
-// --- Health check endpoint for ALB ---
-app.get('/health', (_req, res) => {
-  res.status(200).send('ok');
-});
-
-// --- Start server ---
-app.listen(process.env.PORT || 3000, () => {
-  console.log(`Server running on port ${process.env.PORT || 3000}`);
-});
-
-// Start server + run migrations before accepting requests
-app.listen(PORT, async () => {
+// Start after migration
+(async () => {
   try {
     await migrate();
-    console.log("App listening on", PORT);
+    app.listen(PORT, () => console.log(`App listening on ${PORT}`));
   } catch (e) {
     console.error("Migration failed:", e);
-    process.exit(1); // Exit process if DB migration fails
+    process.exit(1);
   }
-});
+})();
