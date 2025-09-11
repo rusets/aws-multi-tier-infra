@@ -94,6 +94,16 @@ app.delete("/api/notes/:id", async (req, res) => {
 // Serve frontend index page
 app.get("/", (_req, res) => res.sendFile(path.join(__dirname, "public/index.html")));
 
+// --- Health check endpoint for ALB ---
+app.get('/health', (_req, res) => {
+  res.status(200).send('ok');
+});
+
+// --- Start server ---
+app.listen(process.env.PORT || 3000, () => {
+  console.log(`Server running on port ${process.env.PORT || 3000}`);
+});
+
 // Start server + run migrations before accepting requests
 app.listen(PORT, async () => {
   try {

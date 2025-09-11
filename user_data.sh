@@ -190,7 +190,8 @@ fi
 cat >/etc/systemd/system/rdapp.service <<'UNIT'
 [Unit]
 Description=Notes Demo App
-After=network.target
+After=network-online.target
+Wants=network-online.target
 
 [Service]
 Type=simple
@@ -201,6 +202,7 @@ Restart=always
 RestartSec=3
 User=root
 LimitNOFILE=65536
+TimeoutStartSec=60
 
 [Install]
 WantedBy=multi-user.target
