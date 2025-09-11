@@ -383,7 +383,7 @@ resource "aws_launch_template" "app" {
 
 resource "aws_autoscaling_group" "app" {
   name                      = "${var.project_name}-asg"
-  max_size                  = 1
+  max_size                  = 3
   min_size                  = 1
   desired_capacity          = 1
   health_check_type         = "ELB"
