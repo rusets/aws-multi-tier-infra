@@ -2,20 +2,20 @@ name: app
 
 on:
   push:
-    branches: [ "main" ]
-    paths:
+    branches: [ "main" ]                   # Run on pushes to main
+    paths:                                 # Only when these paths change
       - "app/**"
       - "public/**"
       - ".github/workflows/app.yml"
-  workflow_dispatch: {}
+  workflow_dispatch: {}                     # Allow manual runs from the UI
 
 permissions:
-  id-token: write
-  contents: read
+  id-token: write                           # Required for OIDC federation to AWS
+  contents: read                            # Needed by actions/checkout
 
 env:
-  AWS_REGION: us-east-1
-  PARAM_PATH: /multi-tier-demo
+  AWS_REGION: us-east-1                     # AWS region to operate in
+  PARAM_PATH: /multi-tier-demo              # Root prefix in SSM Parameter Store
 
 jobs:
   deploy-app:
@@ -38,7 +38,7 @@ jobs:
           BUCKET=$(aws ssm get-parameter \
             --name "${PARAM_PATH}/assets_bucket" \
             --query 'Parameter.Value' --output text)
-          echo "bucket=$BUCKET" >> "$GITHUB_OUTPUT"
+          echo "bucket=$BUCKET" >> $GITHUB_OUTPUT
           echo "Assets bucket: $BUCKET"
 
       - name: Setup Node 18 (if Node app exists)
@@ -49,7 +49,7 @@ jobs:
 
       - name: Build Node app
         id: build_node
-        if: hashFiles('app/package.json') != ''   # Only when app/package.json exists
+        if: hashFiles('app/package.json') != ''
         run: |
           set -euo pipefail
           cd app
@@ -61,11 +61,11 @@ jobs:
             npm install --omit=dev
           fi
           npm run build || true
-          cd ..
+
           TS=$(date +'%Y%m%d-%H%M%S')
           ZIP="app-$TS-${GITHUB_SHA::7}.zip"
-          # Исключим node_modules: на инстансе всё равно идёт npm install
-          zip -r "$ZIP" app -x "app/node_modules/**" "app/.cache/**"
+          # Упаковать содержимое папки app/, без node_modules и .cache
+          zip -r "../$ZIP" . -x "node_modules/**" ".cache/**"
           echo "artifact=$ZIP" >> $GITHUB_OUTPUT
 
       - name: Package static files (public/) if no Node app
@@ -76,22 +76,22 @@ jobs:
           TS=$(date +'%Y%m%d-%H%M%S')
           ZIP="app-$TS-${GITHUB_SHA::7}.zip"
           zip -r "$ZIP" public
-          echo "artifact=$ZIP" >> "$GITHUB_OUTPUT"
+          echo "artifact=$ZIP" >> $GITHUB_OUTPUT
 
       - name: Pick artifact
         id: pick
         run: |
-          set -euo pipefail
-          if [ -n "${{ steps.build_node.outputs.artifact }}" ]; then
-            echo "key=${{ steps.build_node.outputs.artifact }}" >> "$GITHUB_OUTPUT"
+          if [ -n "${{ steps.build_node.outputs.artifact || '' }}" ]; then
+            echo "key=${{ steps.build_node.outputs.artifact }}" >> $GITHUB_OUTPUT
           else
-            echo "key=${{ steps.pack_static.outputs.artifact }}" >> "$GITHUB_OUTPUT"
+            echo "key=${{ steps.pack_static.outputs.artifact }}" >> $GITHUB_OUTPUT
           fi
 
       - name: Upload to S3
         run: |
           set -euo pipefail
-          aws s3 cp "${{ steps.pick.outputs.key }}" "s3://${{ steps.ssm.outputs.bucket }}/artifacts/${{ steps.pick.outputs.key }}"
+          aws s3 cp "${{ steps.pick.outputs.key }}" \
+            "s3://${{ steps.ssm.outputs.bucket }}/artifacts/${{ steps.pick.outputs.key }}"
 
       - name: Update SSM artifact key (current)
         run: |
@@ -115,14 +115,13 @@ jobs:
             --type String --overwrite \
             --value "$(date -u +'%Y-%m-%dT%H:%M:%SZ')"
 
-      # Optional: start a rolling refresh so new AMIs pick the artifact immediately
-      # Make sure the OIDC role has autoscaling:StartInstanceRefresh on your ASG ARN.
-      # - name: Start ASG Instance Refresh (optional)
-      #   env:
-      #     ASG_NAME: multi-tier-demo-asg
-      #   run: |
-      #     set -euo pipefail
-      #     aws autoscaling start-instance-refresh \
-      #       --auto-scaling-group-name "$ASG_NAME" \
-      #       --preferences 'MinHealthyPercentage=90,InstanceWarmup=30' \
-      #       --strategy Rolling
+      - name: Start ASG Instance Refresh (optional)
+        env:
+          ASG_NAME: multi-tier-demo-asg
+        run: |
+          set -euo pipefail
+          aws autoscaling start-instance-refresh \
+            --auto-scaling-group-name "$ASG_NAME" \
+            --preferences 'MinHealthyPercentage=90,InstanceWarmup=30' \
+            --strategy Rolling
+          echo "ASG instance refresh started for $ASG_NAME"
