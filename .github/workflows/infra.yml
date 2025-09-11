@@ -1,0 +1,56 @@
+name: infra  # CI for Terraform infrastructure
+
+on:
+  pull_request:
+    paths:
+      - '**.tf'                          # Run when any Terraform files change
+      - '.github/workflows/infra.yml'    # Or when this workflow changes
+  push:
+    branches: [ "main" ]                 # Run on pushes to main
+    paths:
+      - '**.tf'
+      - '.github/workflows/infra.yml'
+  workflow_dispatch: {}                  # Allow manual trigger from Actions UI
+
+permissions:
+  id-token: write                        # Required for AWS OIDC federation
+  contents: read                         # Needed for actions/checkout
+  pull-requests: write                   # (Optional) for commenting on PRs, etc.
+
+env:
+  AWS_REGION: us-east-1                  # Default AWS region
+  TF_IN_AUTOMATION: "true"               # Hints to Terraform it's running in CI
+
+jobs:
+  terraform:
+    runs-on: ubuntu-latest               # GitHub-hosted Linux runner
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4        # Pull repository contents
+
+      - name: Configure AWS credentials (OIDC)
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: arn:aws:iam::097635932419:role/multi-tier-demo-github-tf # IAM role trusted for your repo/branch
+          aws-region: ${{ env.AWS_REGION }}                                        # Region for AWS SDK/CLI
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3  # Install Terraform binary
+        with:
+          terraform_version: 1.9.5          # Pin a known-good TF version
+
+      - name: Terraform Init
+        run: terraform init -input=false    # Initialize providers/backend without interactive prompts
+
+      - name: Terraform Validate
+        run: terraform validate             # Static validation of configuration
+
+      - name: Terraform Plan
+        if: github.event_name == 'pull_request'     # Only plan on PRs
+        run: terraform plan -input=false -no-color  # Create an execution plan (no color for cleaner logs)
+        continue-on-error: true                     # Keep job alive to allow PR feedback even if plan fails
+
+      - name: Terraform Apply (main)
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'  # Only apply on pushes to main
+        run: terraform apply -auto-approve -input=false                     # Non-interactive apply
