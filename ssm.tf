@@ -18,7 +18,7 @@ resource "aws_ssm_parameter" "app_artifact_key" {
   value       = "artifacts/app-initial.zip" # or your CI pipeline value
   description = "S3 key for the application artifact"
   tags        = { project = var.namespace }
-  overwrite = true  # Always overwrite existing parameter value
+  overwrite   = true # Always overwrite existing parameter value
 }
 
 
@@ -28,7 +28,7 @@ resource "aws_ssm_parameter" "app_port" {
   value       = tostring(var.app_port)
   description = "Application port (string for convenience in bash)"
   tags        = { project = var.namespace }
-  overwrite = true  # Always overwrite existing parameter value
+  overwrite   = true # Always overwrite existing parameter value
 }
 
 # ---- DB parameters (non-secret) ----
@@ -38,7 +38,7 @@ resource "aws_ssm_parameter" "db_host" {
   value       = aws_db_instance.db.address
   description = "RDS hostname"
   tags        = { project = var.namespace }
-  overwrite = true  # Always overwrite existing parameter value
+  overwrite   = true # Always overwrite existing parameter value
 }
 
 resource "aws_ssm_parameter" "db_username" {
@@ -47,7 +47,7 @@ resource "aws_ssm_parameter" "db_username" {
   value       = aws_db_instance.db.username
   description = "RDS master username"
   tags        = { project = var.namespace }
-  overwrite = true  # Always overwrite existing parameter value
+  overwrite   = true # Always overwrite existing parameter value
 }
 
 resource "aws_ssm_parameter" "db_name" {
@@ -56,7 +56,7 @@ resource "aws_ssm_parameter" "db_name" {
   value       = "notes"
   description = "Application database name"
   tags        = { project = var.namespace }
-  overwrite = true  # Always overwrite existing parameter value
+  overwrite   = true # Always overwrite existing parameter value
 }
 
 # ---- DB password in SSM is OPTIONAL (use Secrets Manager instead if possible) ----
@@ -69,5 +69,5 @@ resource "aws_ssm_parameter" "db_password" {
   value       = aws_db_instance.db.password # If you set manage_master_user_password=true you won't have this. Prefer Secrets Manager.
   description = "RDS master password (SecureString). Prefer Secrets Manager; keep this disabled by default."
   tags        = { project = var.namespace }
-  overwrite = true  # Always overwrite existing parameter value
+  overwrite   = true # Always overwrite existing parameter value
 }
