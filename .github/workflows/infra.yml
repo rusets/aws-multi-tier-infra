@@ -63,6 +63,12 @@ jobs:
 
       - name: Terraform init
         run: terraform init -input=false
+        # NEW: import existing IAM role into state if not present (idempotent)
+      - name: Import github_tf role if needed
+        run: |
+          set -e
+          terraform state show aws_iam_role.github_tf >/dev/null 2>&1 || \
+          terraform import aws_iam_role.github_tf multi-tier-demo-github-tf
 
       - name: Terraform validate
         run: terraform validate
