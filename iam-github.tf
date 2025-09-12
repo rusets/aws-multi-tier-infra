@@ -3,37 +3,30 @@
 # (comments are in English) #
 ##############################
 
-# Which GitHub repo can assume these roles (format: owner/repo)
-variable "github_repo" {
-  description = "GitHub repository allowed to assume OIDC roles (format: owner/repo)"
-  type        = string
-  default     = "rusets/aws-multi-tier-infra"
-}
-
-# Read EXISTING GitHub OIDC provider (do not create a duplicate)
+# Use existing GitHub OIDC provider (do NOT create a duplicate)
 data "aws_iam_openid_connect_provider" "github" {
   url = "https://token.actions.githubusercontent.com"
 }
 
 # ---------- Role for Terraform (infra pipeline) ----------
+# Trust policy limited to your repo (any branch)
 data "aws_iam_policy_document" "tf_assume" {
   statement {
     actions = ["sts:AssumeRoleWithWebIdentity"]
 
     principals {
-      type = "Federated"
-      # IMPORTANT: use data.* (existing provider), not resource.*
+      type        = "Federated"
       identifiers = [data.aws_iam_openid_connect_provider.github.arn]
     }
 
-    # Audience must be sts.amazonaws.com for GitHub OIDC
+    # GitHub OIDC audience must be sts.amazonaws.com
     condition {
       test     = "StringEquals"
       variable = "token.actions.githubusercontent.com:aud"
       values   = ["sts.amazonaws.com"]
     }
 
-    # Restrict to this repository (any branch)
+    # Limit to this repository (all branches)
     condition {
       test     = "StringLike"
       variable = "token.actions.githubusercontent.com:sub"
@@ -44,29 +37,29 @@ data "aws_iam_policy_document" "tf_assume" {
 
 resource "aws_iam_role" "github_tf" {
   name               = "multi-tier-demo-github-tf"
-  assume_role_policy = data.aws_iam_policy_document.tf_assume.json
   description        = "Role for Terraform via GitHub Actions OIDC"
+  assume_role_policy = data.aws_iam_policy_document.tf_assume.json
 }
 
-# Pragmatic baseline: PowerUserAccess
+# Baseline permissions for Terraform in CI
 resource "aws_iam_role_policy_attachment" "tf_poweruser" {
   role       = aws_iam_role.github_tf.name
   policy_arn = "arn:aws:iam::aws:policy/PowerUserAccess"
 }
 
-# Extra IAM it often needs in restricted orgs (TagRole, ListInstanceProfiles, etc.)
-# Enable by default; remove if your org policies already allow it.
+# Extra IAM permissions that PowerUserAccess does not include (IAM is excluded)
 resource "aws_iam_policy" "tf_iam_extras" {
-  name        = "multi-tier-demo-tf-iam-extras"
-  description = "Extra IAM permissions for Terraform when org/SCP is strict"
+  name        = "${var.project_name}-tf-iam-extras"
+  description = "Extra IAM permissions needed by Terraform when managing IAM resources"
   policy = jsonencode({
     Version = "2012-10-17",
     Statement = [
       {
-        Sid    = "IamReadWriteForRolesPolicies",
+        Sid    = "IamCrudForRolesPolicies",
         Effect = "Allow",
         Action = [
-          "iam:CreateRole", "iam:DeleteRole", "iam:TagRole", "iam:UntagRole",
+          "iam:CreateRole", "iam:DeleteRole", "iam:UpdateAssumeRolePolicy",
+          "iam:TagRole", "iam:UntagRole",
           "iam:AttachRolePolicy", "iam:DetachRolePolicy",
           "iam:CreatePolicy", "iam:DeletePolicy", "iam:GetPolicy",
           "iam:CreatePolicyVersion", "iam:DeletePolicyVersion",
@@ -84,8 +77,14 @@ resource "aws_iam_policy" "tf_iam_extras" {
         Sid       = "PassRoleToEC2Only",
         Effect    = "Allow",
         Action    = "iam:PassRole",
-        Resource  = "arn:aws:iam::*:role/multi-tier-demo-*",
+        Resource  = "arn:aws:iam::*:role/${var.project_name}-*",
         Condition = { StringEquals = { "iam:PassedToService" = "ec2.amazonaws.com" } }
+      },
+      {
+        Sid      = "CreateServiceLinkedRoles",
+        Effect   = "Allow",
+        Action   = ["iam:CreateServiceLinkedRole"],
+        Resource = "*"
       }
     ]
   })
@@ -122,30 +121,30 @@ data "aws_iam_policy_document" "app_assume" {
 
 resource "aws_iam_role" "github_app" {
   name               = "multi-tier-demo-github-app"
-  assume_role_policy = data.aws_iam_policy_document.app_assume.json
   description        = "Role for App deploy via GitHub Actions OIDC"
+  assume_role_policy = data.aws_iam_policy_document.app_assume.json
 }
 
-# App role: S3 artifacts + SSM params under configured param_path
+# App role: S3 artifacts + SSM params (under param_path) + ASG Instance Refresh
 resource "aws_iam_role_policy" "github_app_artifacts_and_ssm" {
   name = "AppArtifactsAndSsmAccess"
   role = aws_iam_role.github_app.id
   policy = jsonencode({
     Version = "2012-10-17",
     Statement = [
-      # List that specific bucket
+      # S3 list this bucket
       {
         Effect   = "Allow",
         Action   = ["s3:ListBucket"],
         Resource = "${aws_s3_bucket.assets.arn}"
       },
-      # Work with objects inside that bucket
+      # S3 read/write objects in this bucket (artifacts)
       {
         Effect   = "Allow",
         Action   = ["s3:PutObject", "s3:PutObjectAcl", "s3:GetObject", "s3:DeleteObject"],
         Resource = "${aws_s3_bucket.assets.arn}/*"
       },
-      # Read/write SSM params only under the chosen path
+      # SSM read/write limited to your base param path
       {
         Effect   = "Allow",
         Action   = ["ssm:GetParameter", "ssm:GetParameters", "ssm:PutParameter"],
@@ -155,7 +154,6 @@ resource "aws_iam_role_policy" "github_app_artifacts_and_ssm" {
   })
 }
 
-# Allow CI to trigger Instance Refresh on our ASG
 resource "aws_iam_role_policy" "github_app_asg_refresh" {
   name = "AppAsgInstanceRefresh"
   role = aws_iam_role.github_app.id
@@ -184,7 +182,7 @@ data "aws_iam_policy_document" "ec2_s3_read" {
 }
 
 resource "aws_iam_policy" "ec2_s3_read" {
-  name        = "multi-tier-demo-ec2-s3-read"
+  name        = "${var.project_name}-ec2-s3-read"
   description = "Allow EC2 instances to list and get objects from the S3 assets bucket"
   policy      = data.aws_iam_policy_document.ec2_s3_read.json
 }
