@@ -16,7 +16,7 @@ on:
         default: true
 
 permissions:
-  id-token: write   # required for OIDC
+  id-token: write   # required for GitHub OIDC → AWS
   contents: read
 
 env:
@@ -34,20 +34,21 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Terraform version
-        run: terraform version
-
+      # Install Terraform BEFORE any terraform commands
       - name: Setup Terraform
         uses: hashicorp/setup-terraform@v3
         with:
           terraform_wrapper: false
+          # terraform_version: 1.8.5  # optionally pin version
+
+      - name: Terraform version
+        run: terraform version
 
       - name: Configure AWS credentials (OIDC)
         uses: aws-actions/configure-aws-credentials@v4
         with:
           role-to-assume: arn:aws:iam::${{ secrets.AWS_ACCOUNT_ID }}:role/multi-tier-demo-github-tf
           aws-region: ${{ env.AWS_REGION }}
-      # ↑ Совет: создай секрет AWS_ACCOUNT_ID в репозитории. Можно и вшить номер, но секрет аккуратнее.
 
       - name: Terraform fmt (check)
         run: terraform fmt -check -recursive

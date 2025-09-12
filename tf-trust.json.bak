@@ -3,7 +3,7 @@
   "Statement": [
     {
       "Effect": "Allow",
-      "Principal": { "Federated": "arn:aws:iam::097635932419:oidc-provider/token.actions.githubusercontent.com" },
+      "Principal": { "Federated": "REPLACE_PROVIDER_ARN" },
       "Action": "sts:AssumeRoleWithWebIdentity",
       "Condition": {
         "StringEquals": {
