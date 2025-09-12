@@ -180,4 +180,3 @@ variable "github_repo" {
     error_message = "github_repo must be in the form owner/repo (e.g., rusets/aws-multi-tier-infra)."
   }
 }
-# touch Fri Sep 12 17:28:43 CDT 2025 // test
