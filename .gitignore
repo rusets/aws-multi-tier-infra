@@ -20,3 +20,10 @@ app/**/build/
 .DS_Store
 tf-allow-iam-bootstrap.json
 tf-allow-iam-bootstrap.json
+# Terraform state (do NOT commit)
+*.tfstate
+*.tfstate.*
+crash.log
+.terraform/
+# optional: keep the lock file tracked; if you prefer to ignore it, uncomment next line
+#.terraform.lock.hcl
