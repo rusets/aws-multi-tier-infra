@@ -8,6 +8,8 @@ crash.log
 # Node
 app/node_modules/
 app/.cache/
+tf-allow-iam-bootstrap.json
+
 
 # Zips / builds
 app-*.zip
@@ -16,3 +18,4 @@ app/**/build/
 
 # OS
 .DS_Store
+tf-allow-iam-bootstrap.json
