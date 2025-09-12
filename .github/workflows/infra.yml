@@ -8,17 +8,20 @@ on:
         required: true
         type: choice
         default: apply
-        options: [apply, destroy]
+        options:
+          - apply
+          - destroy
       auto_approve:
         description: "Apply/destroy without manual approval (CI-friendly)"
         required: true
         type: boolean
         default: true
-    push:
-        branches: [ main ]
-        paths:
-      - '**/*.tf'
-      - '.github/workflows/infra.yml'
+  push:
+    branches:
+      - main
+    paths:
+      - "**/*.tf"
+      - ".github/workflows/infra.yml"
 
 permissions:
   id-token: write   # required for GitHub OIDC → AWS
