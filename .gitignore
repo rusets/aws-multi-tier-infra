@@ -19,3 +19,4 @@ app/**/build/
 # OS
 .DS_Store
 tf-allow-iam-bootstrap.json
+tf-allow-iam-bootstrap.json

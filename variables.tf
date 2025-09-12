@@ -98,3 +98,10 @@ variable "ssm_kms_key_id" {
   default     = null
   description = "KMS key id/arn for SSM SecureString parameters (only used if ssm_write_db_password==true)."
 }
+
+# Key of the application artifact in S3 (passed from CI)
+variable "app_artifact_key" {
+  type        = string
+  description = "S3 key for the application artifact (e.g., artifacts/app-20250911.zip)"
+  default     = "artifacts/app-initial.zip"
+}
