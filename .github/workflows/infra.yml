@@ -90,15 +90,62 @@ jobs:
         with:
           terraform_wrapper: false
 
+    name: infra
+
+on:
+  # Manual run with a dropdown to choose apply or destroy
+  workflow_dispatch:
+    inputs:
+      action:
+        description: "Terraform action"
+        required: true
+        type: choice
+        default: apply
+        options: [apply, destroy]
+      auto_approve:
+        description: "Skip manual approval flag"
+        required: true
+        type: boolean
+        default: true
+
+# Required for GitHub OIDC -> AWS
+permissions:
+  id-token: write
+  contents: read
+
+# Global envs
+env:
+  AWS_REGION: us-east-1
+  TF_IN_AUTOMATION: "1"
+
+concurrency:
+  # Avoid running two infra jobs at once
+  group: infra-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  terraform:
+    runs-on: ubuntu-latest
+
+    steps:
+      # --- Checkout repo ---
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      # --- Setup Terraform ---
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_wrapper: false
+
       # --- Configure AWS via OIDC ---
-      # NOTE: Update account id if different
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v4
         with:
           role-to-assume: arn:aws:iam::097635932419:role/multi-tier-demo-github-tf
           aws-region: ${{ env.AWS_REGION }}
 
-      # --- Lint/format check (non-blocking for destroy if you wish) ---
+      # --- Lint/format check ---
       - name: Terraform fmt (check)
         run: terraform fmt -check -recursive
 
