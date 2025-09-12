@@ -1,5 +1,5 @@
 ############################################################
-# Input Variables (comments are in English, as requested)334433
+# Input Variables (comments are in English, as requested)
 ############################################################
 
 # Global project tag/name applied across resources (used for naming and tagging)
