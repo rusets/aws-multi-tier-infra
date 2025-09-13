@@ -180,3 +180,10 @@ variable "github_repo" {
     error_message = "github_repo must be in the form owner/repo (e.g., rusets/aws-multi-tier-infra)."
   }
 }
+
+# Existing GitHub OIDC provider ARN (we avoid data-source to skip IAM read perms)
+variable "github_oidc_provider_arn" {
+  type        = string
+  description = "ARN of the existing GitHub OIDC provider"
+  default     = "arn:aws:iam::097635932419:oidc-provider/token.actions.githubusercontent.com"
+}

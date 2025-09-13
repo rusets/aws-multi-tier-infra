@@ -1,31 +1,25 @@
 ##############################
 # GitHub OIDC + CI roles    #
-# (comments are in English) #
+# (uses only variables.tf)   #
 ##############################
 
-# --- TEMP bootstrap: pass OIDC provider ARN explicitly (no data source needed) ---
-variable "github_oidc_provider_arn" {
-  type        = string
-  description = "ARN of GitHub Actions OIDC provider"
-  default     = "arn:aws:iam::097635932419:oidc-provider/token.actions.githubusercontent.com"
-}
-
+# We do NOT read the OIDC provider via data source to avoid IAM read perms.
+# Instead we pass its ARN via variable github_oidc_provider_arn.
 locals {
-  github_oidc_arn = var.github_oidc_provider_arn
+  github_oidc_provider_arn = var.github_oidc_provider_arn
 }
 
 # ---------- Role for Terraform (infra pipeline) ----------
-# Trust policy limited to your repo (any branch)
 data "aws_iam_policy_document" "tf_assume" {
   statement {
     actions = ["sts:AssumeRoleWithWebIdentity"]
 
     principals {
       type        = "Federated"
-      identifiers = [local.github_oidc_arn]
+      identifiers = [local.github_oidc_provider_arn]
     }
 
-    # GitHub OIDC audience must be sts.amazonaws.com
+    # Required audience for GitHub OIDC
     condition {
       test     = "StringEquals"
       variable = "token.actions.githubusercontent.com:aud"
@@ -47,13 +41,14 @@ resource "aws_iam_role" "github_tf" {
   assume_role_policy = data.aws_iam_policy_document.tf_assume.json
 }
 
-# Baseline permissions for Terraform in CI
+# Baseline permissions for Terraform in CI (broad AWS access EXCEPT IAM)
 resource "aws_iam_role_policy_attachment" "tf_poweruser" {
   role       = aws_iam_role.github_tf.name
   policy_arn = "arn:aws:iam::aws:policy/PowerUserAccess"
 }
 
-# Extra IAM permissions that PowerUserAccess does not include (IAM is excluded)
+# Extra IAM permissions Terraform needs because PowerUserAccess excludes IAM.
+# Keep pragmatic and scoped to role/policy management + PassRole to EC2.
 resource "aws_iam_policy" "tf_iam_extras" {
   name        = "${var.project_name}-tf-iam-extras"
   description = "Extra IAM permissions needed by Terraform when managing IAM resources"
@@ -75,12 +70,8 @@ resource "aws_iam_policy" "tf_iam_extras" {
           "iam:CreateInstanceProfile", "iam:DeleteInstanceProfile",
           "iam:AddRoleToInstanceProfile", "iam:RemoveRoleFromInstanceProfile",
           "iam:GetInstanceProfile",
-          "iam:PassRole",
-          "iam:GetRole",
-          "iam:ListRoles",
-          "iam:ListOpenIDConnectProviders",
-          "iam:GetOpenIDConnectProvider"
-
+          "iam:GetRole", "iam:ListRoles",
+          "iam:PassRole"
         ],
         Resource = "*"
       },
@@ -113,7 +104,7 @@ data "aws_iam_policy_document" "app_assume" {
 
     principals {
       type        = "Federated"
-      identifiers = [local.github_oidc_arn]
+      identifiers = [local.github_oidc_provider_arn]
     }
 
     condition {
