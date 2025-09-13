@@ -20,7 +20,7 @@ on:
         type: string
         default: ""
   push:
-    branches: [ main ]
+    branches: [main]
     paths:
       - "**/*.tf"
       - ".github/workflows/infra.yml"
@@ -40,7 +40,6 @@ concurrency:
 jobs:
   terraform:
     runs-on: ubuntu-latest
-
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -61,32 +60,30 @@ jobs:
           role-duration-seconds: 3600
           aws-region: ${{ env.AWS_REGION }}
 
-      - name: terraform fmt (check)
+      - name: Terraform fmt (check)
         run: terraform fmt -check -recursive
 
-      - name: terraform init
+      - name: Terraform init
         run: terraform init -input=false
 
-      - name: terraform validate
+      - name: Terraform validate
         run: terraform validate
 
-      # OPTIONAL: try to clear a stuck lock only if user provided an ID
-      - name: terraform force-unlock (optional)
+      - name: Terraform force-unlock (optional)
         if: ${{ inputs.unlock_id != '' }}
         run: terraform force-unlock -force "${{ inputs.unlock_id }}" || true
 
-      # =============== APPLY =================
-      - name: terraform plan (apply)
+      # ===================== APPLY =====================
+      - name: Terraform plan (apply)
         if: ${{ inputs.action == 'apply' }}
         run: terraform plan -input=false -lock-timeout=5m -out=tfplan
 
-      - name: terraform apply saved plan
+      - name: Terraform apply saved plan
         if: ${{ inputs.action == 'apply' && inputs.auto_approve }}
         run: terraform apply -input=false -auto-approve -lock-timeout=5m tfplan
 
-      # =============== DESTROY ===============
-      # Drop CI roles/policies from state to avoid prevent_destroy conflicts
-      - name: pre-destroy: drop CI roles from state
+      # ==================== DESTROY ====================
+      - name: Pre-destroy - drop CI roles from state
         if: ${{ inputs.action == 'destroy' }}
         shell: bash
         run: |
@@ -100,10 +97,10 @@ jobs:
           terraform state rm aws_iam_policy.tf_iam_extras || true
           terraform state rm aws_iam_policy.ec2_s3_read || true
 
-      - name: terraform plan (destroy)
+      - name: Terraform plan (destroy)
         if: ${{ inputs.action == 'destroy' }}
         run: terraform plan -destroy -input=false -lock-timeout=5m -out=tfplan
 
-      - name: terraform destroy saved plan
+      - name: Terraform destroy saved plan
         if: ${{ inputs.action == 'destroy' && inputs.auto_approve }}
         run: terraform apply -input=false -auto-approve -lock-timeout=5m tfplan
