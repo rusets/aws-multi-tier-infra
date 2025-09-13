@@ -1,0 +1,22 @@
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Sid": "TerraformListBucket",
+      "Effect": "Allow",
+      "Principal": { "AWS": "arn:aws:iam::097635932419:role/multi-tier-demo-github-tf" },
+      "Action": "s3:ListBucket",
+      "Resource": "arn:aws:s3:::multi-tier-demo-tfstate-097635932419-e7f2c4",
+      "Condition": {
+        "StringLike": { "s3:prefix": [ "aws-multi-tier-infra/*" ] }
+      }
+    },
+    {
+      "Sid": "TerraformRWStateObjects",
+      "Effect": "Allow",
+      "Principal": { "AWS": "arn:aws:iam::097635932419:role/multi-tier-demo-github-tf" },
+      "Action": ["s3:GetObject","s3:PutObject","s3:DeleteObject","s3:PutObjectAcl"],
+      "Resource": "arn:aws:s3:::multi-tier-demo-tfstate-097635932419-e7f2c4/aws-multi-tier-infra/*"
+    }
+  ]
+}

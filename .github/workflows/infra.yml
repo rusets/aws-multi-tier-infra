@@ -52,12 +52,13 @@ jobs:
       - name: Terraform version
         run: terraform version
 
-      - name: Configure AWS credentials (OIDC)
-        uses: aws-actions/configure-aws-credentials@v4
-        with:
-          role-to-assume: arn:aws:iam::${{ secrets.AWS_ACCOUNT_ID }}:role/multi-tier-demo-github-tf
-          aws-region: ${{ env.AWS_REGION }}
-
+     - name: Configure AWS credentials (OIDC)
+  uses: aws-actions/configure-aws-credentials@v4
+  with:
+    role-to-assume: arn:aws:iam::097635932419:role/multi-tier-demo-github-tf
+    role-session-name: gha-terraform
+    role-duration-seconds: 3600   # максимум для GitHub OIDC у AWS
+    aws-region: ${{ env.AWS_REGION }}
       - name: Terraform fmt (check)
         run: terraform fmt -check -recursive
 

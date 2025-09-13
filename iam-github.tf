@@ -3,9 +3,15 @@
 # (comments are in English) #
 ##############################
 
-# Use existing GitHub OIDC provider (do NOT create a duplicate)
-data "aws_iam_openid_connect_provider" "github" {
-  url = "https://token.actions.githubusercontent.com"
+# --- TEMP bootstrap: pass OIDC provider ARN explicitly (no data source needed) ---
+variable "github_oidc_provider_arn" {
+  type        = string
+  description = "ARN of GitHub Actions OIDC provider"
+  default     = "arn:aws:iam::097635932419:oidc-provider/token.actions.githubusercontent.com"
+}
+
+locals {
+  github_oidc_arn = var.github_oidc_provider_arn
 }
 
 # ---------- Role for Terraform (infra pipeline) ----------
@@ -16,7 +22,7 @@ data "aws_iam_policy_document" "tf_assume" {
 
     principals {
       type        = "Federated"
-      identifiers = [data.aws_iam_openid_connect_provider.github.arn]
+      identifiers = [local.github_oidc_arn]
     }
 
     # GitHub OIDC audience must be sts.amazonaws.com
@@ -107,7 +113,7 @@ data "aws_iam_policy_document" "app_assume" {
 
     principals {
       type        = "Federated"
-      identifiers = [data.aws_iam_openid_connect_provider.github.arn]
+      identifiers = [local.github_oidc_arn]
     }
 
     condition {
