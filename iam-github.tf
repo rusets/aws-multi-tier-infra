@@ -253,3 +253,36 @@ resource "aws_iam_role_policy_attachment" "tf_backend_attach" {
   role       = aws_iam_role.github_tf.name
   policy_arn = aws_iam_policy.tf_backend.arn
 }
+
+# Inline policy with the minimal reads Terraform needs from AWS
+resource "aws_iam_role_policy" "tf_iam_read" {
+  name = "tf-iam-read"
+  role = aws_iam_role.github_tf.name
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      # IAM/OIDC reads we already used
+      {
+        Sid    = "IamAndOidcRead"
+        Effect = "Allow"
+        Action = [
+          "iam:GetRole",
+          "iam:ListRoles",
+          "iam:ListOpenIDConnectProviders",
+          "iam:GetOpenIDConnectProvider"
+        ]
+        Resource = "*"
+      },
+      # NEW: EC2 reads for Terraform data sources (AZs, AMIs, etc)
+      {
+        Sid    = "Ec2ReadOnlyForData"
+        Effect = "Allow"
+        Action = [
+          "ec2:Describe*"
+        ]
+        Resource = "*"
+      }
+    ]
+  })
+}
