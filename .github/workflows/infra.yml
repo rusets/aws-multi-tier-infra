@@ -85,6 +85,48 @@ jobs:
         if: ${{ inputs.action == 'apply' && inputs.auto_approve }}
         run: terraform apply -input=false -auto-approve tfplan
 
+              # ----- DESTROY -----
+      # Remove CI roles from state to avoid prevent_destroy errors
+      - name: Pre-destroy: drop CI roles from state
+        if: ${{ inputs.action == 'destroy' }}
+        run: |
+          set -e
+          terraform state rm \
+            aws_iam_role.github_tf \
+            aws_iam_role.github_app \
+            aws_iam_role_policy_attachment.tf_poweruser \
+            aws_iam_role_policy_attachment.tf_iam_extras_attach \
+            aws_iam_role_policy.github_app_artifacts_and_ssm \
+            aws_iam_role_policy.github_app_asg_refresh || true
+
+      # Empty the artifacts bucket before destroy (Terraform will fail if not empty)
+      - name: Pre-destroy: empty artifacts bucket
+        if: ${{ inputs.action == 'destroy' }}
+        run: |
+          set -e
+          BKT=$(terraform state show aws_s3_bucket.assets | awk -F' = ' '/^ *bucket *=/ {print $2}' | tr -d '"')
+          if [ -n "$BKT" ]; then
+            aws s3 rm "s3://$BKT" --recursive || true
+          fi
+
+      # Scale down ASG to 0 to speed up destroy
+      - name: Pre-destroy: scale ASG to zero
+        if: ${{ inputs.action == 'destroy' }}
+        run: |
+          aws autoscaling update-auto-scaling-group \
+            --auto-scaling-group-name multi-tier-demo-asg \
+            --min-size 0 --max-size 0 --desired-capacity 0 || true
+
+      # Terraform destroy plan
+      - name: Terraform plan (destroy)
+        if: ${{ inputs.action == 'destroy' }}
+        run: terraform plan -destroy -input=false -out=tfplan
+
+      # Terraform destroy apply
+      - name: Terraform destroy saved plan
+        if: ${{ inputs.action == 'destroy' && inputs.auto_approve }}
+        run: terraform apply -input=false -auto-approve tfplan
+
       # ----- DESTROY -----
       - name: Terraform plan (destroy)
         if: ${{ inputs.action == 'destroy' }}

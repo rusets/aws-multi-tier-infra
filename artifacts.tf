@@ -18,3 +18,14 @@ resource "aws_s3_object" "app_initial" {
   source = data.archive_file.app_zip.output_path          # local .zip file to upload
   etag   = filemd5(data.archive_file.app_zip.output_path) # ensures update if contents change
 }
+
+resource "aws_s3_bucket" "assets" {
+  bucket = "${var.project_name}-assets-${random_id.suffix.hex}"
+
+  # This automatically removes all objects when bucket is destroyed
+  force_destroy = true
+
+  tags = {
+    project = var.project_name
+  }
+}
