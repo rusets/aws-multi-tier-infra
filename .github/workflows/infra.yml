@@ -68,6 +68,27 @@ jobs:
       - name: Terraform validate
         run: terraform validate
 
+              # === Import pre-existing IAM objects into state (idempotent) ===
+      - name: Import IAM roles/policies if missing
+        run: |
+          set -euo pipefail
+
+          ACCT="${{ secrets.AWS_ACCOUNT_ID }}"
+
+          # Roles
+          terraform state show aws_iam_role.github_tf >/dev/null 2>&1 || \
+            terraform import aws_iam_role.github_tf multi-tier-demo-github-tf
+
+          terraform state show aws_iam_role.github_app >/dev/null 2>&1 || \
+            terraform import aws_iam_role.github_app multi-tier-demo-github-app
+
+          # Policies
+          terraform state show aws_iam_policy.tf_iam_extras >/dev/null 2>&1 || \
+            terraform import aws_iam_policy.tf_iam_extras arn:aws:iam::${ACCT}:policy/multi-tier-demo-tf-iam-extras
+
+          terraform state show aws_iam_policy.ec2_s3_read >/dev/null 2>&1 || \
+            terraform import aws_iam_policy.ec2_s3_read arn:aws:iam::${ACCT}:policy/multi-tier-demo-ec2-s3-read
+
       # ===================== APPLY =====================
       - name: Terraform plan (apply)
         if: ${{ inputs.action == 'apply' }}
