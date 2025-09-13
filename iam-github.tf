@@ -69,7 +69,12 @@ resource "aws_iam_policy" "tf_iam_extras" {
           "iam:CreateInstanceProfile", "iam:DeleteInstanceProfile",
           "iam:AddRoleToInstanceProfile", "iam:RemoveRoleFromInstanceProfile",
           "iam:GetInstanceProfile",
-          "iam:PassRole"
+          "iam:PassRole",
+          "iam:GetRole",
+          "iam:ListRoles",
+          "iam:ListOpenIDConnectProviders",
+          "iam:GetOpenIDConnectProvider"
+
         ],
         Resource = "*"
       },
