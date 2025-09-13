@@ -1,0 +1,27 @@
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Sid": "TerraformCanManageIAMNeededBits",
+      "Effect": "Allow",
+      "Action": [
+        "iam:CreateRole","iam:DeleteRole","iam:UpdateAssumeRolePolicy",
+        "iam:TagRole","iam:UntagRole",
+        "iam:AttachRolePolicy","iam:DetachRolePolicy",
+        "iam:CreatePolicy","iam:DeletePolicy","iam:GetPolicy",
+        "iam:CreatePolicyVersion","iam:DeletePolicyVersion",
+        "iam:GetPolicyVersion","iam:ListPolicyVersions",
+        "iam:ListRoles","iam:GetRole",
+        "iam:ListRolePolicies","iam:GetRolePolicy","iam:ListAttachedRolePolicies",
+        "iam:ListInstanceProfilesForRole",
+        "iam:CreateInstanceProfile","iam:DeleteInstanceProfile",
+        "iam:AddRoleToInstanceProfile","iam:RemoveRoleFromInstanceProfile",
+        "iam:GetInstanceProfile",
+        "iam:PassRole",
+        "iam:ListOpenIDConnectProviders","iam:GetOpenIDConnectProvider",
+        "iam:CreateServiceLinkedRole"
+      ],
+      "Resource": "*"
+    }
+  ]
+}
