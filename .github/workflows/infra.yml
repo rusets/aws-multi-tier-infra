@@ -8,17 +8,14 @@ on:
         required: true
         type: choice
         default: apply
-        options:
-          - apply
-          - destroy
+        options: [apply, destroy]
       auto_approve:
         description: "Apply/destroy without manual approval (CI-friendly)"
         required: true
         type: boolean
         default: true
   push:
-    branches:
-      - main
+    branches: [ main ]
     paths:
       - "**/*.tf"
       - ".github/workflows/infra.yml"
@@ -81,11 +78,12 @@ jobs:
         run: terraform apply -input=false -auto-approve tfplan
 
       # ==================== DESTROY ====================
-      # Drop CI roles from state so destroy doesn't try to delete them (they have prevent_destroy)
+      # Remove CI roles/policies from state so destroy doesn't try to delete them (they have prevent_destroy)
       - name: Pre-destroy: drop CI roles from state
         if: ${{ inputs.action == 'destroy' }}
+        shell: bash
         run: |
-          set -e
+          set -euo pipefail
           terraform state rm aws_iam_role.github_tf || true
           terraform state rm aws_iam_role.github_app || true
           terraform state rm aws_iam_role_policy_attachment.tf_poweruser || true
