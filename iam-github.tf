@@ -211,3 +211,45 @@ resource "aws_iam_role_policy_attachment" "attach_s3_read" {
   role       = aws_iam_role.ec2_role.name
   policy_arn = aws_iam_policy.ec2_s3_read.arn
 }
+
+# Minimal permissions for Terraform backend (S3 state + DynamoDB lock)
+locals {
+  tf_state_bucket = "multi-tier-demo-tfstate-097635932419-e7f2c4"
+  tf_lock_table   = "multi-tier-demo-tf-locks"
+  region          = "us-east-1"
+  account_id      = "097635932419"
+}
+
+resource "aws_iam_policy" "tf_backend" {
+  name        = "${var.project_name}-tf-backend"
+  description = "Allow CI role to read/write Terraform state in S3 and use DynamoDB locking"
+  policy = jsonencode({
+    Version = "2012-10-17",
+    Statement = [
+      {
+        Sid      = "ListStateBucket",
+        Effect   = "Allow",
+        Action   = ["s3:ListBucket", "s3:GetBucketLocation"],
+        Resource = "arn:aws:s3:::${local.tf_state_bucket}"
+      },
+      {
+        Sid    = "RWStateObjects",
+        Effect = "Allow",
+        Action = ["s3:GetObject", "s3:PutObject", "s3:DeleteObject",
+        "s3:GetObjectVersion", "s3:AbortMultipartUpload", "s3:ListBucketMultipartUploads"],
+        Resource = "arn:aws:s3:::${local.tf_state_bucket}/*"
+      },
+      {
+        Sid      = "DynamoDBLocking",
+        Effect   = "Allow",
+        Action   = ["dynamodb:DescribeTable", "dynamodb:GetItem", "dynamodb:PutItem", "dynamodb:DeleteItem", "dynamodb:UpdateItem"],
+        Resource = "arn:aws:dynamodb:${local.region}:${local.account_id}:table/${local.tf_lock_table}"
+      }
+    ]
+  })
+}
+
+resource "aws_iam_role_policy_attachment" "tf_backend_attach" {
+  role       = aws_iam_role.github_tf.name
+  policy_arn = aws_iam_policy.tf_backend.arn
+}
