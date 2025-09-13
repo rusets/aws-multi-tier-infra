@@ -39,6 +39,14 @@ resource "aws_iam_role" "github_tf" {
   name               = "multi-tier-demo-github-tf"
   description        = "Role for Terraform via GitHub Actions OIDC"
   assume_role_policy = data.aws_iam_policy_document.tf_assume.json
+
+  lifecycle {
+    prevent_destroy = true
+    ignore_changes = [
+      tags,
+      assume_role_policy
+    ]
+  }
 }
 
 # Baseline permissions for Terraform in CI (broad AWS access EXCEPT IAM)
@@ -125,6 +133,14 @@ resource "aws_iam_role" "github_app" {
   name               = "multi-tier-demo-github-app"
   description        = "Role for App deploy via GitHub Actions OIDC"
   assume_role_policy = data.aws_iam_policy_document.app_assume.json
+
+  lifecycle {
+    prevent_destroy = true
+    ignore_changes = [
+      tags,
+      assume_role_policy
+    ]
+  }
 }
 
 # App role: S3 artifacts + SSM params (under param_path) + ASG Instance Refresh
