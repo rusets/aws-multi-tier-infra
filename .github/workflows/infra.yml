@@ -24,7 +24,7 @@ on:
       - ".github/workflows/infra.yml"
 
 permissions:
-  id-token: write   # required for GitHub OIDC → AWS
+  id-token: write
   contents: read
 
 env:
@@ -52,19 +52,21 @@ jobs:
       - name: Terraform version
         run: terraform version
 
-     - name: Configure AWS credentials (OIDC)
-  uses: aws-actions/configure-aws-credentials@v4
-  with:
-    role-to-assume: arn:aws:iam::097635932419:role/multi-tier-demo-github-tf
-    role-session-name: gha-terraform
-    role-duration-seconds: 3600   # максимум для GitHub OIDC у AWS
-    aws-region: ${{ env.AWS_REGION }}
+      - name: Configure AWS credentials (OIDC)
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: arn:aws:iam::097635932419:role/multi-tier-demo-github-tf
+          role-session-name: gha-terraform
+          role-duration-seconds: 3600
+          aws-region: ${{ env.AWS_REGION }}
+
       - name: Terraform fmt (check)
         run: terraform fmt -check -recursive
 
       - name: Terraform init
         run: terraform init -input=false
-        # NEW: import existing IAM role into state if not present (idempotent)
+
+      # Optional: import existing role so Terraform doesn't try to recreate it
       - name: Import github_tf role if needed
         run: |
           set -e
