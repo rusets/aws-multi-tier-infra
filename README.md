@@ -184,4 +184,4 @@ docs/
 
 ## License
 
-MIT (or your choice).
+All rights are protected.
