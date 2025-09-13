@@ -404,12 +404,3 @@ resource "aws_autoscaling_group" "app" {
   }
 }
 
-############################################################
-# S3 (optional assets / placeholder)
-############################################################
-resource "random_id" "rand" { byte_length = 3 }
-
-resource "aws_s3_bucket" "assets" {
-  bucket = "${var.project_name}-assets-${random_id.rand.hex}"
-  tags   = local.tags
-}
