@@ -24,7 +24,7 @@ on:
       - ".github/workflows/infra.yml"
 
 permissions:
-  id-token: write
+  id-token: write   # required for GitHub OIDC → AWS
   contents: read
 
 env:
@@ -38,6 +38,7 @@ concurrency:
 jobs:
   terraform:
     runs-on: ubuntu-latest
+
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -47,15 +48,16 @@ jobs:
         uses: hashicorp/setup-terraform@v3
         with:
           terraform_wrapper: false
-          # terraform_version: 1.8.5  # optionally pin version
+          # terraform_version: 1.8.5  # uncomment to pin
 
       - name: Terraform version
         run: terraform version
 
+      # Configure AWS credentials via GitHub OIDC
       - name: Configure AWS credentials (OIDC)
         uses: aws-actions/configure-aws-credentials@v4
         with:
-          role-to-assume: arn:aws:iam::097635932419:role/multi-tier-demo-github-tf
+          role-to-assume: arn:aws:iam::${{ secrets.AWS_ACCOUNT_ID }}:role/multi-tier-demo-github-tf
           role-session-name: gha-terraform
           role-duration-seconds: 3600
           aws-region: ${{ env.AWS_REGION }}
@@ -66,17 +68,10 @@ jobs:
       - name: Terraform init
         run: terraform init -input=false
 
-      # Optional: import existing role so Terraform doesn't try to recreate it
-      - name: Import github_tf role if needed
-        run: |
-          set -e
-          terraform state show aws_iam_role.github_tf >/dev/null 2>&1 || \
-          terraform import aws_iam_role.github_tf multi-tier-demo-github-tf
-
       - name: Terraform validate
         run: terraform validate
 
-      # ----- APPLY -----
+      # ===================== APPLY =====================
       - name: Terraform plan (apply)
         if: ${{ inputs.action == 'apply' }}
         run: terraform plan -input=false -out=tfplan
@@ -85,49 +80,21 @@ jobs:
         if: ${{ inputs.action == 'apply' && inputs.auto_approve }}
         run: terraform apply -input=false -auto-approve tfplan
 
-              # ----- DESTROY -----
-      # Remove CI roles from state to avoid prevent_destroy errors
+      # ==================== DESTROY ====================
+      # Drop CI roles from state so destroy doesn't try to delete them (they have prevent_destroy)
       - name: Pre-destroy: drop CI roles from state
         if: ${{ inputs.action == 'destroy' }}
         run: |
           set -e
-          terraform state rm \
-            aws_iam_role.github_tf \
-            aws_iam_role.github_app \
-            aws_iam_role_policy_attachment.tf_poweruser \
-            aws_iam_role_policy_attachment.tf_iam_extras_attach \
-            aws_iam_role_policy.github_app_artifacts_and_ssm \
-            aws_iam_role_policy.github_app_asg_refresh || true
+          terraform state rm aws_iam_role.github_tf || true
+          terraform state rm aws_iam_role.github_app || true
+          terraform state rm aws_iam_role_policy_attachment.tf_poweruser || true
+          terraform state rm aws_iam_role_policy_attachment.tf_iam_extras_attach || true
+          terraform state rm aws_iam_role_policy.github_app_artifacts_and_ssm || true
+          terraform state rm aws_iam_role_policy.github_app_asg_refresh || true
+          terraform state rm aws_iam_policy.tf_iam_extras || true
+          terraform state rm aws_iam_policy.ec2_s3_read || true
 
-      # Empty the artifacts bucket before destroy (Terraform will fail if not empty)
-      - name: Pre-destroy: empty artifacts bucket
-        if: ${{ inputs.action == 'destroy' }}
-        run: |
-          set -e
-          BKT=$(terraform state show aws_s3_bucket.assets | awk -F' = ' '/^ *bucket *=/ {print $2}' | tr -d '"')
-          if [ -n "$BKT" ]; then
-            aws s3 rm "s3://$BKT" --recursive || true
-          fi
-
-      # Scale down ASG to 0 to speed up destroy
-      - name: Pre-destroy: scale ASG to zero
-        if: ${{ inputs.action == 'destroy' }}
-        run: |
-          aws autoscaling update-auto-scaling-group \
-            --auto-scaling-group-name multi-tier-demo-asg \
-            --min-size 0 --max-size 0 --desired-capacity 0 || true
-
-      # Terraform destroy plan
-      - name: Terraform plan (destroy)
-        if: ${{ inputs.action == 'destroy' }}
-        run: terraform plan -destroy -input=false -out=tfplan
-
-      # Terraform destroy apply
-      - name: Terraform destroy saved plan
-        if: ${{ inputs.action == 'destroy' && inputs.auto_approve }}
-        run: terraform apply -input=false -auto-approve tfplan
-
-      # ----- DESTROY -----
       - name: Terraform plan (destroy)
         if: ${{ inputs.action == 'destroy' }}
         run: terraform plan -destroy -input=false -out=tfplan
