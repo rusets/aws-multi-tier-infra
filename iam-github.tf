@@ -249,9 +249,9 @@ resource "aws_iam_policy" "tf_backend" {
   })
 }
 
-resource "aws_iam_role_policy_attachment" "tf_backend_attach" {
+resource "aws_iam_role_policy_attachment" "tf_ec2_readonly" {
   role       = aws_iam_role.github_tf.name
-  policy_arn = aws_iam_policy.tf_backend.arn
+  policy_arn = "arn:aws:iam::aws:policy/AmazonEC2ReadOnlyAccess"
 }
 
 # Inline policy with the minimal reads Terraform needs from AWS
