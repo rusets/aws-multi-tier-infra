@@ -14,19 +14,14 @@ on:
         required: true
         type: boolean
         default: true
-      unlock_id:
-        description: "(Optional) Stuck state lock ID for force-unlock"
-        required: false
-        type: string
-        default: ""
   push:
-    branches: [main]
+    branches: [ main ]
     paths:
       - "**/*.tf"
       - ".github/workflows/infra.yml"
 
 permissions:
-  id-token: write
+  id-token: write   # required for GitHub OIDC → AWS
   contents: read
 
 env:
@@ -40,18 +35,22 @@ concurrency:
 jobs:
   terraform:
     runs-on: ubuntu-latest
+
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
+      # Install Terraform BEFORE any terraform commands
       - name: Setup Terraform
         uses: hashicorp/setup-terraform@v3
         with:
           terraform_wrapper: false
+          # terraform_version: 1.8.5  # uncomment to pin
 
       - name: Terraform version
         run: terraform version
 
+      # Configure AWS credentials via GitHub OIDC
       - name: Configure AWS credentials (OIDC)
         uses: aws-actions/configure-aws-credentials@v4
         with:
@@ -69,38 +68,74 @@ jobs:
       - name: Terraform validate
         run: terraform validate
 
-      - name: Terraform force-unlock (optional)
-        if: ${{ inputs.unlock_id != '' }}
-        run: terraform force-unlock -force "${{ inputs.unlock_id }}" || true
+              # === Import pre-existing IAM objects into state (idempotent) ===
+      - name: Import IAM roles/policies if missing
+        run: |
+          set -euo pipefail
+
+          ACCT="${{ secrets.AWS_ACCOUNT_ID }}"
+
+          # Roles
+          terraform state show aws_iam_role.github_tf >/dev/null 2>&1 || \
+            terraform import aws_iam_role.github_tf multi-tier-demo-github-tf
+
+          terraform state show aws_iam_role.github_app >/dev/null 2>&1 || \
+            terraform import aws_iam_role.github_app multi-tier-demo-github-app
+
+          # Policies
+          terraform state show aws_iam_policy.tf_iam_extras >/dev/null 2>&1 || \
+            terraform import aws_iam_policy.tf_iam_extras arn:aws:iam::${ACCT}:policy/multi-tier-demo-tf-iam-extras
+
+          terraform state show aws_iam_policy.ec2_s3_read >/dev/null 2>&1 || \
+            terraform import aws_iam_policy.ec2_s3_read arn:aws:iam::${ACCT}:policy/multi-tier-demo-ec2-s3-read
 
       # ===================== APPLY =====================
       - name: Terraform plan (apply)
         if: ${{ inputs.action == 'apply' }}
-        run: terraform plan -input=false -lock-timeout=5m -out=tfplan
+        run: terraform plan -input=false -out=tfplan
 
       - name: Terraform apply saved plan
         if: ${{ inputs.action == 'apply' && inputs.auto_approve }}
-        run: terraform apply -input=false -auto-approve -lock-timeout=5m tfplan
+        run: terraform apply -input=false -auto-approve tfplan
 
       # ==================== DESTROY ====================
-      - name: Pre-destroy - drop CI roles from state
+      # Remove CI roles/policies from state so destroy doesn't try to delete them (they have prevent_destroy)
+      - name: Drop github_tf role from state
         if: ${{ inputs.action == 'destroy' }}
-        shell: bash
-        run: |
-          set -euo pipefail
-          terraform state rm aws_iam_role.github_tf || true
-          terraform state rm aws_iam_role.github_app || true
-          terraform state rm aws_iam_role_policy_attachment.tf_poweruser || true
-          terraform state rm aws_iam_role_policy_attachment.tf_iam_extras_attach || true
-          terraform state rm aws_iam_role_policy.github_app_artifacts_and_ssm || true
-          terraform state rm aws_iam_role_policy.github_app_asg_refresh || true
-          terraform state rm aws_iam_policy.tf_iam_extras || true
-          terraform state rm aws_iam_policy.ec2_s3_read || true
+        run: terraform state rm aws_iam_role.github_tf || true
+
+      - name: Drop github_app role from state
+        if: ${{ inputs.action == 'destroy' }}
+        run: terraform state rm aws_iam_role.github_app || true
+
+      - name: Drop tf_poweruser attach from state
+        if: ${{ inputs.action == 'destroy' }}
+        run: terraform state rm aws_iam_role_policy_attachment.tf_poweruser || true
+
+      - name: Drop tf_iam_extras attach from state
+        if: ${{ inputs.action == 'destroy' }}
+        run: terraform state rm aws_iam_role_policy_attachment.tf_iam_extras_attach || true
+
+      - name: Drop github_app inline policy (artifacts+ssm) from state
+        if: ${{ inputs.action == 'destroy' }}
+        run: terraform state rm aws_iam_role_policy.github_app_artifacts_and_ssm || true
+
+      - name: Drop github_app inline policy (asg refresh) from state
+        if: ${{ inputs.action == 'destroy' }}
+        run: terraform state rm aws_iam_role_policy.github_app_asg_refresh || true
+
+      - name: Drop tf_iam_extras policy from state
+        if: ${{ inputs.action == 'destroy' }}
+        run: terraform state rm aws_iam_policy.tf_iam_extras || true
+
+      - name: Drop ec2_s3_read policy from state
+        if: ${{ inputs.action == 'destroy' }}
+        run: terraform state rm aws_iam_policy.ec2_s3_read || true
 
       - name: Terraform plan (destroy)
         if: ${{ inputs.action == 'destroy' }}
-        run: terraform plan -destroy -input=false -lock-timeout=5m -out=tfplan
+        run: terraform plan -destroy -input=false -out=tfplan
 
       - name: Terraform destroy saved plan
         if: ${{ inputs.action == 'destroy' && inputs.auto_approve }}
-        run: terraform apply -input=false -auto-approve -lock-timeout=5m tfplan
+        run: terraform apply -input=false -auto-approve tfplan
