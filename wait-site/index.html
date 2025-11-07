@@ -1,0 +1,213 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Ruslan AWS — Wake Console</title>
+  <style>
+    :root{
+      --bg:#070711;
+      --fg:#e8f7ff;
+      --muted:#a8b2c6;
+      --glass: rgba(255,255,255,.06);
+      --glass-border: rgba(255,255,255,.16);
+      --accent:#00eaff;
+      --ok:#00ffb4;
+    }
+    *{box-sizing:border-box}
+    body{
+      margin:0;min-height:100vh;background:var(--bg);color:var(--fg);
+      font-family: Manrope, Inter, system-ui, Segoe UI, Roboto, sans-serif;
+      display:grid;place-items:center;overflow:hidden
+    }
+    .brand{
+      position:fixed;top:14px;left:16px;z-index:10;
+      display:flex;gap:8px;align-items:center;
+      padding:8px 12px;border-radius:12px;
+      background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.14);
+      backdrop-filter: blur(8px);
+      box-shadow: 0 6px 24px rgba(0,0,0,.35);
+      font-weight:700; letter-spacing:.2px;
+    }
+    .brand .logo{filter: drop-shadow(0 0 8px rgba(0,234,255,.45));}
+    .brand .txt{background:linear-gradient(90deg,#00eaff,#a677ff);-webkit-background-clip:text;-webkit-text-fill-color:transparent}
+    .help{
+      position:fixed;top:14px;right:16px;z-index:10;
+      color:var(--muted);font-size:.9rem;opacity:.85
+    }
+    .glowTL,.glowBR{
+      position:fixed;width:60vmax;height:60vmax;border-radius:50%;
+      filter:blur(120px);opacity:.5;z-index:0
+    }
+    .glowTL{top:-20vmax;left:-15vmax;background:radial-gradient(circle,#00eaff,transparent 60%)}
+    .glowBR{right:-20vmax;bottom:-15vmax;background:radial-gradient(circle,#ff00cc,transparent 60%)}
+    .grid{
+      position:fixed;inset:0;
+      background-image:
+        linear-gradient(rgba(255,255,255,.05) 1px,transparent 1px),
+        linear-gradient(90deg,rgba(255,255,255,.05) 1px,transparent 1px);
+      background-size:40px 40px;
+      mask-image:radial-gradient(circle at center, black 60%, transparent 80%)
+    }
+    .card{
+      position:relative;z-index:2;width:min(680px,92vw);
+      padding:46px 38px;border-radius:18px;
+      background:var(--glass);border:1px solid var(--glass-border);
+      backdrop-filter:blur(10px);text-align:center;
+      box-shadow:0 10px 60px rgba(0,0,0,.4)
+    }
+    h1{margin:0 0 8px;color:#bdf8ff;text-shadow:0 0 14px #00eaff55;font-size:2.1rem}
+    p.sub{margin:0 0 18px;color:#c4cfde}
+    .progress{
+      margin:16px auto 8px;width:90%;max-width:560px;text-align:left
+    }
+    .bar-wrap{height:10px;background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.14);border-radius:999px;overflow:hidden}
+    .bar{
+      height:100%;width:0%;
+      background:linear-gradient(90deg,#ff00cc,#ff8800,#00ffd5,#00aaff,#a677ff);
+      background-size:200% 100%;animation:barFlow 7s ease infinite
+    }
+    @keyframes barFlow{50%{background-position:100% 0}}
+    .stages{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-top:10px}
+    .stage{
+      padding:8px 6px;border-radius:10px;text-align:center;
+      background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.12);
+      color:var(--muted);font-weight:600;font-size:.9rem
+    }
+    .stage.done{color:var(--ok);border-color:rgba(0,255,180,.65);box-shadow:0 0 16px rgba(0,255,180,.15) inset}
+    .stage.active{color:#fff;border-color:#00eaff;box-shadow:0 0 18px rgba(0,234,255,.2) inset}
+    .loader{
+      width:78px;height:78px;margin:18px auto;border:3px solid rgba(255,255,255,.18);
+      border-left-color:#ff00cc;border-right-color:#00eaff;border-radius:50%;
+      animation:spin 2.4s linear infinite;animation-play-state:paused
+    }
+    .loader.go{animation-play-state:running}
+    .loader.stop{animation-play-state:paused;opacity:.7;border-left-color:var(--ok);border-right-color:var(--ok)}
+    @keyframes spin{to{transform:rotate(360deg)}}
+    .row{display:flex;gap:12px;justify-content:center;flex-wrap:wrap;margin-top:6px}
+    button{appearance:none;border:none;border-radius:10px;padding:12px 22px;font-weight:700;letter-spacing:.4px;cursor:pointer;transition:.25s}
+    #wake{background:linear-gradient(90deg,#ff00cc,#ff9900,#00ffcc,#00aaff,#a677ff);color:#fff}
+    #open{background:rgba(0,255,180,.08);border:1px solid #00ffb4;color:#00ffb4}
+    #open:disabled{opacity:.4;border-color:#3a5;color:#7aa;cursor:not-allowed}
+    footer{position:fixed;bottom:12px;width:100%;text-align:center;color:#94a1b2}
+  </style>
+</head>
+<body>
+  <div class="brand"><span class="logo">🚀</span><span class="txt">Ruslan AWS</span></div>
+  <div class="help">No logs. Secure mode.</div>
+  <div class="glowTL"></div><div class="glowBR"></div><div class="grid"></div>
+  <main class="card">
+    <h1>Wake Multi-Tier</h1>
+    <p class="sub" id="subtitle">Click “Wake up” to start the environment.</p>
+    <div class="progress">
+      <div class="bar-wrap"><div class="bar" id="bar"></div></div>
+      <div class="stages">
+        <div class="stage" id="s1">VPC</div>
+        <div class="stage" id="s2">DB</div>
+        <div class="stage" id="s3">ASG / ALB</div>
+        <div class="stage" id="s4">App</div>
+      </div>
+    </div>
+    <div class="loader" id="spinner"></div>
+    <div class="row">
+      <button id="wake">Wake up</button>
+      <button id="open" disabled>Open App</button>
+    </div>
+    <p id="status-text" style="color:var(--muted);margin-top:10px">
+      ETA ~ 6–8 minutes. We’ll enable “Open App” when the environment is ready.
+    </p>
+  </main>
+  <footer>Built with AWS · Terraform · GitHub Actions</footer>
+
+  <script>
+    const WAKE_URL   = "https://e40una40of.execute-api.us-east-1.amazonaws.com/prod/wake";
+    const STATUS_URL = "https://e40una40of.execute-api.us-east-1.amazonaws.com/prod/status";
+    const OPEN_URL   = "https://multi-tier.space/";
+
+    const BTN_OPEN = document.getElementById("open");
+    const BTN_WAKE = document.getElementById("wake");
+    const TEXT     = document.getElementById("status-text");
+    const SUB      = document.getElementById("subtitle");
+    const BAR      = document.getElementById("bar");
+    const SPINNER  = document.getElementById("spinner");
+
+    const STAGES = [
+      { id:"s1", label:"VPC" },
+      { id:"s2", label:"DB" },
+      { id:"s3", label:"ASG / ALB" },
+      { id:"s4", label:"App" }
+    ];
+
+    let wakeSent = false;
+    let stageIndex = 0;
+    let percent = 0;
+    let pollTimer = null;
+
+    function setStage(idx){
+      STAGES.forEach((s, i)=>{
+        const el = document.getElementById(s.id);
+        el.classList.remove("active","done");
+        if (i < idx) el.classList.add("done");
+        if (i === idx) el.classList.add("active");
+      });
+    }
+
+    function setPercent(p){
+      percent = Math.max(0, Math.min(100, p));
+      BAR.style.width = percent + "%";
+    }
+
+    function bumpPseudoProgress(){
+      if (percent >= 96) return;
+      const step = (stageIndex < 1 ? 2.0 : stageIndex < 2 ? 1.6 : 1.2);
+      setPercent(percent + step);
+      if (percent > 24 && stageIndex === 0) { stageIndex = 1; setStage(stageIndex); SUB.textContent = "Creating database (RDS)…"; }
+      if (percent > 55 && stageIndex === 1) { stageIndex = 2; setStage(stageIndex); SUB.textContent = "Bootstrapping ASG and ALB…"; }
+      if (percent > 80 && stageIndex === 2) { stageIndex = 3; setStage(stageIndex); SUB.textContent = "Deploying application…"; }
+    }
+
+    async function pollStatus(){
+      try{
+        const res = await fetch(STATUS_URL, { headers: { 'Cache-Control':'no-store' } });
+        const data = await res.json();
+        const state = String(data.state || "").toLowerCase();
+        if (state === "ready"){
+          setStage(4); setPercent(100);
+          TEXT.textContent = "Environment is ready — open the app.";
+          BTN_OPEN.disabled = false;
+          BTN_OPEN.textContent = "Open App 🚀";
+          SUB.textContent = "All systems go.";
+          SPINNER.classList.remove("go");
+          SPINNER.classList.add("stop");
+          if (pollTimer) { clearTimeout(pollTimer); pollTimer = null; }
+          return;
+        } else {
+          TEXT.textContent = "Waking up… we’ll check again shortly.";
+        }
+      }catch(e){
+        TEXT.textContent = "Waiting for connection…";
+      }
+      bumpPseudoProgress();
+      pollTimer = setTimeout(pollStatus, 7000);
+    }
+
+    BTN_OPEN.addEventListener("click", () => window.location.href = OPEN_URL);
+
+    BTN_WAKE.addEventListener("click", async () => {
+      BTN_WAKE.disabled = true;
+      try { await fetch(WAKE_URL, { method:"POST", mode:"no-cors" }); } catch(e) {}
+      if (!wakeSent){
+        wakeSent = true;
+        setStage(0);
+        setPercent(3);
+        SPINNER.classList.add("go");
+        TEXT.textContent = "Wake signal sent. Initializing…";
+        SUB.textContent  = "Provisioning resources…";
+        pollStatus();
+      }
+    });
+
+    // No auto-wake on load
+  </script>
+</body>
+</html>

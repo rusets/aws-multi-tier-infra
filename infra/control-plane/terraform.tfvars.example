@@ -1,0 +1,18 @@
+project_name           = "multi-tier-demo"
+region                 = "us-east-1"
+
+# существующий API Gateway
+existing_http_api_id   = "e40una40of"
+api_stage_name         = "prod"
+
+# параметры сайта ожидания
+domain_name            = "multi-tier.space"
+wait_site_bucket_name  = "multi-tier-demo-wait-site"
+wait_site_prefix       = ""
+
+# GitHub
+gh_owner        = "rusets"
+gh_repo         = "aws-multi-tier-infra"
+gh_workflow     = "infra.yml"
+gh_ref          = "refs/heads/main"
+gh_secret_name  = "gh/actions/token"

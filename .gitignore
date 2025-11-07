@@ -1,0 +1,63 @@
+############################################
+# Terraform — local state & temp files
+############################################
+.terraform/
+*.tfstate
+*.tfstate.*
+crash.log
+override.tf
+override.tf.json
+*_override.tf
+*_override.tf.json
+
+# Optional: if you don't want to commit provider lock file
+# .terraform.lock.hcl
+
+############################################
+# Terraform plans & artifacts
+############################################
+tf.plan
+tfplan
+*.zip
+dist/
+build/
+
+############################################
+# Lambda packages (built archives)
+############################################
+infra/control-plane/dist/
+lambda/**/node_modules/
+lambda/**/__pycache__/
+lambda/**/.pytest_cache/
+lambda/**/venv/
+
+############################################
+# Node / App project
+############################################
+app/node_modules/
+app/.cache/
+app/.env
+app/.next/
+app/dist/
+app/build/
+npm-debug.log*
+yarn-error.log*
+
+############################################
+# Local environment / OS
+############################################
+.DS_Store
+Thumbs.db
+.envrc
+*.swp
+*.bak
+*.tmp
+
+############################################
+# Bootstrap / temp JSON
+############################################
+tf-allow-iam-bootstrap.json
+# Local tfvars
+infra/control-plane/terraform.tfvars
+
+**/terraform.tfvars

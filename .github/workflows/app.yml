@@ -1,0 +1,120 @@
+name: app
+
+on:
+  workflow_call:
+    inputs:
+      param_path:
+        type: string
+        required: true
+      aws_region:
+        type: string
+        required: true
+    secrets:
+      APP_ROLE_ARN:
+        required: true
+
+permissions:
+  id-token: write
+  contents: read
+
+env:
+  PARAM_PATH: ${{ inputs.param_path }}
+  AWS_REGION: ${{ inputs.aws_region }}
+
+concurrency:
+  group: app-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  deploy-app:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Configure AWS credentials (OIDC)
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.APP_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Get assets bucket from SSM
+        id: ssm
+        run: |
+          set -euo pipefail
+          BUCKET=$(aws ssm get-parameter --name "${PARAM_PATH}/assets_bucket" --query 'Parameter.Value' --output text)
+          echo "bucket=$BUCKET" >> $GITHUB_OUTPUT
+
+      - name: Setup Node 20 (if Node app exists)
+        if: hashFiles('app/package.json') != ''
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Build Node app
+        id: build_node
+        if: hashFiles('app/package.json') != ''
+        run: |
+          set -euo pipefail
+          cd app
+          if [ -f package-lock.json ] || [ -f npm-shrinkwrap.json ]; then
+            npm ci --omit=dev
+          else
+            npm install --omit=dev
+          fi
+          npm run build || true
+          TS=$(date +'%Y%m%d-%H%M%S')
+          ZIP="app-$TS-${GITHUB_SHA::7}.zip"
+          zip -r "../$ZIP" . -x "node_modules/**" ".cache/**"
+          echo "artifact=$ZIP" >> $GITHUB_OUTPUT
+
+      - name: Package static files (if no Node app)
+        id: pack_static
+        if: hashFiles('app/package.json') == ''
+        run: |
+          set -euo pipefail
+          TS=$(date +'%Y%m%d-%H%M%S')
+          ZIP="app-$TS-${GITHUB_SHA::7}.zip"
+          cd app || true
+          if [ -d public ]; then
+            zip -r "../$ZIP" public
+          else
+            echo "No app/package.json and no app/public — nothing to package" >&2
+            exit 1
+          fi
+          echo "artifact=$ZIP" >> $GITHUB_OUTPUT
+
+      - name: Pick artifact
+        id: pick
+        run: |
+          if [ -n "${{ steps.build_node.outputs.artifact }}" ]; then
+            echo "key=${{ steps.build_node.outputs.artifact }}" >> $GITHUB_OUTPUT
+          else
+            echo "key=${{ steps.pack_static.outputs.artifact }}" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Upload artifact to S3
+        run: |
+          set -euo pipefail
+          aws s3 cp "${{ steps.pick.outputs.key }}" "s3://${{ steps.ssm.outputs.bucket }}/artifacts/${{ steps.pick.outputs.key }}"
+
+      - name: Update SSM parameters
+        run: |
+          set -euo pipefail
+          aws ssm put-parameter --name "${PARAM_PATH}/app/artifact_key" --type String --overwrite --value "artifacts/${{ steps.pick.outputs.key }}"
+          aws ssm put-parameter --name "${PARAM_PATH}/app/last_deploy_sha"  --type String --overwrite --value "${GITHUB_SHA}"
+          aws ssm put-parameter --name "${PARAM_PATH}/app/last_deploy_time" --type String --overwrite --value "$(date -u +'%Y-%m-%dT%H:%M:%SZ')"
+
+      - name: Start ASG Instance Refresh
+        env:
+          ASG_PARAM: ${{ env.PARAM_PATH }}/asg_name
+        run: |
+          set -euo pipefail
+          if aws ssm get-parameter --name "$ASG_PARAM" >/dev/null 2>&1; then
+            ASG_NAME=$(aws ssm get-parameter --name "$ASG_PARAM" --query 'Parameter.Value' --output text)
+          else
+            ASG_NAME="multi-tier-demo-asg"
+          fi
+          aws autoscaling start-instance-refresh --auto-scaling-group-name "$ASG_NAME" \
+            --preferences 'MinHealthyPercentage=90,InstanceWarmup=30' --strategy Rolling
