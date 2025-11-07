@@ -14,6 +14,8 @@ on:
         required: true
         type: boolean
         default: true
+  repository_dispatch:
+    types: [wake]
   push:
     branches: [main]
     paths:
@@ -28,12 +30,8 @@ permissions:
 env:
   AWS_REGION: us-east-1
   TF_IN_AUTOMATION: "1"
-  ACTION: ${{ github.event_name == 'workflow_dispatch' && inputs.action || 'apply' }}
-  AUTO_APPROVE: ${{ github.event_name == 'workflow_dispatch' && inputs.auto_approve || 'true' }}
-
-  ############################################
-  # Terraform input variables (safe defaults)
-  ############################################
+  ACTION: ${{ github.event_name == 'workflow_dispatch' && inputs.action || (github.event_name == 'repository_dispatch' && github.event.action == 'wake' && github.event.client_payload.action) || 'apply' }}
+  AUTO_APPROVE: ${{ github.event_name == 'workflow_dispatch' && inputs.auto_approve || (github.event_name == 'repository_dispatch' && github.event.action == 'wake' && github.event.client_payload.auto_approve) || 'true' }}
   TF_VAR_hosted_zone_id: ${{ secrets.HOSTED_ZONE_ID }}
   TF_VAR_acm_certificate_arn: ${{ secrets.ACM_CERT_ARN }}
   TF_VAR_ami_id: ami-0157af9aea2eef346
@@ -72,9 +70,6 @@ jobs:
           role-duration-seconds: 3600
           aws-region: ${{ env.AWS_REGION }}
 
-      ############################################
-      # Sanity check for Terraform variable inputs
-      ############################################
       - name: Check required TF vars
         run: |
           set -euo pipefail
