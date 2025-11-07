@@ -187,7 +187,7 @@ variable "ssm_kms_key_id" {
   description = "KMS key ID or ARN used to encrypt SSM SecureString when writing DB password."
 
   validation {
-    condition     = var.ssm_write_db_password == false || length(trimspace(coalesce(var.ssm_kms_key_id, ""))) > 0
+    condition     = !var.ssm_write_db_password || length(trimspace(try(var.ssm_kms_key_id, ""))) > 0
     error_message = "When ssm_write_db_password=true, you must set ssm_kms_key_id (KeyId or full ARN)."
   }
 }
