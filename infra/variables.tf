@@ -174,24 +174,21 @@ variable "namespace" {
   }
 }
 
-############################################
-# SSM SecureString Configuration
-# Allows optional DB password storage (disabled by default)
-############################################
+
+
 variable "ssm_write_db_password" {
-  type        = bool
-  description = "If true, write DB password to SSM as SecureString (not recommended when using Secrets Manager)"
-  default     = false
+  type    = bool
+  default = false
 }
 
 variable "ssm_kms_key_id" {
   type        = string
-  description = "KMS key ID/ARN for SSM SecureString parameters (required if ssm_write_db_password=true)"
   default     = null
+  description = "KMS key ID or ARN used to encrypt SSM SecureString when writing DB password."
 
   validation {
-    condition     = var.ssm_write_db_password == false || (var.ssm_write_db_password == true && var.ssm_kms_key_id != null && length(trimspace(var.ssm_kms_key_id)) > 0)
-    error_message = "Provide ssm_kms_key_id when ssm_write_db_password is true."
+    condition     = var.ssm_write_db_password == false || length(trimspace(coalesce(var.ssm_kms_key_id, ""))) > 0
+    error_message = "When ssm_write_db_password=true, you must set ssm_kms_key_id (KeyId or full ARN)."
   }
 }
 
