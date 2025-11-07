@@ -31,6 +31,13 @@ env:
   ACTION: ${{ github.event_name == 'workflow_dispatch' && inputs.action || 'apply' }}
   AUTO_APPROVE: ${{ github.event_name == 'workflow_dispatch' && inputs.auto_approve || 'true' }}
 
+  ############################################
+  # Terraform input variables (safe defaults)
+  ############################################
+  TF_VAR_hosted_zone_id: ${{ secrets.HOSTED_ZONE_ID }}
+  TF_VAR_acm_certificate_arn: ${{ secrets.ACM_CERT_ARN }}
+  TF_VAR_ami_id: ami-0157af9aea2eef346
+
 concurrency:
   group: infra-${{ github.ref }}
   cancel-in-progress: true
@@ -43,6 +50,7 @@ jobs:
     defaults:
       run:
         working-directory: infra
+
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -63,6 +71,19 @@ jobs:
           role-session-name: gha-terraform
           role-duration-seconds: 3600
           aws-region: ${{ env.AWS_REGION }}
+
+      ############################################
+      # Sanity check for Terraform variable inputs
+      ############################################
+      - name: Check required TF vars
+        run: |
+          set -euo pipefail
+          for v in TF_VAR_hosted_zone_id TF_VAR_acm_certificate_arn TF_VAR_ami_id; do
+            if [ -z "${!v:-}" ]; then
+              echo "::error title=Missing Terraform variable::$v is not set"
+              exit 1
+            fi
+          done
 
       - name: Terraform fmt (check)
         run: terraform fmt -check -recursive
