@@ -18,8 +18,8 @@ permissions:
   contents: read
 
 env:
-  PARAM_PATH: ${{ inputs.param_path }}
   AWS_REGION: ${{ inputs.aws_region }}
+  PARAM_PATH: ${{ inputs.param_path }}
 
 concurrency:
   group: app-${{ github.ref }}
@@ -39,82 +39,72 @@ jobs:
           role-to-assume: ${{ secrets.APP_ROLE_ARN }}
           aws-region: ${{ env.AWS_REGION }}
 
-      - name: Get assets bucket from SSM
+      - name: Build or package app (content-hash)
+        id: pack
+        run: |
+          set -euo pipefail
+          if [ -f app/package.json ]; then
+            pushd app >/dev/null
+            if [ -f package-lock.json ] || [ -f npm-shrinkwrap.json ]; then
+              npm ci --omit=dev
+            else
+              npm install --omit=dev
+            fi
+            npm run build || true
+            popd >/dev/null
+            zip -r app-build.zip app -x "app/node_modules/**" "app/.cache/**"
+          else
+            if [ -d app/public ]; then
+              (cd app && zip -r ../app-build.zip public)
+            else
+              echo "No app/package.json and no app/public — nothing to package" >&2
+              exit 1
+            fi
+          fi
+          if command -v md5sum >/dev/null 2>&1; then
+            MD5=$(md5sum app-build.zip | awk '{print $1}')
+          else
+            MD5=$(md5 -q app-build.zip)
+          fi
+          SHORT=${MD5:0:7}
+          NAME="app-${SHORT}.zip"
+          mv -f app-build.zip "$NAME"
+          echo "name=$NAME" >> $GITHUB_OUTPUT
+          echo "md5=$MD5"   >> $GITHUB_OUTPUT
+
+      - name: Detect artifact change by MD5
+        id: diff
+        run: |
+          set -euo pipefail
+          CURRENT="$(aws ssm get-parameter --name "${PARAM_PATH}/app/artifact_md5" --query 'Parameter.Value' --output text 2>/dev/null || echo '')"
+          NEW="${{ steps.pack.outputs.md5 }}"
+          if [ "$NEW" = "$CURRENT" ]; then
+            echo "changed=false" >> $GITHUB_OUTPUT
+          else
+            echo "changed=true" >> $GITHUB_OUTPUT
+          fi
+          echo "current_md5=$CURRENT" >> $GITHUB_OUTPUT
+          echo "new_md5=$NEW"         >> $GITHUB_OUTPUT
+
+      - name: Get assets bucket from SSM (only if changed)
+        if: steps.diff.outputs.changed == 'true'
         id: ssm
         run: |
           set -euo pipefail
           BUCKET=$(aws ssm get-parameter --name "${PARAM_PATH}/assets_bucket" --query 'Parameter.Value' --output text)
           echo "bucket=$BUCKET" >> $GITHUB_OUTPUT
 
-      - name: Setup Node 20 (if Node app exists)
-        if: hashFiles('app/package.json') != ''
-        uses: actions/setup-node@v4
-        with:
-          node-version: "20"
-
-      - name: Build Node app
-        id: build_node
-        if: hashFiles('app/package.json') != ''
+      - name: Upload artifact to S3 (only if changed)
+        if: steps.diff.outputs.changed == 'true'
         run: |
           set -euo pipefail
-          cd app
-          if [ -f package-lock.json ] || [ -f npm-shrinkwrap.json ]; then
-            npm ci --omit=dev
-          else
-            npm install --omit=dev
-          fi
-          npm run build || true
-          TS=$(date +'%Y%m%d-%H%M%S')
-          ZIP="app-$TS-${GITHUB_SHA::7}.zip"
-          zip -r "../$ZIP" . -x "node_modules/**" ".cache/**"
-          echo "artifact=$ZIP" >> $GITHUB_OUTPUT
+          aws s3 cp "${{ steps.pack.outputs.name }}" "s3://${{ steps.ssm.outputs.bucket }}/artifacts/${{ steps.pack.outputs.name }}"
 
-      - name: Package static files (if no Node app)
-        id: pack_static
-        if: hashFiles('app/package.json') == ''
+      - name: Update SSM parameters (only if changed)
+        if: steps.diff.outputs.changed == 'true'
         run: |
           set -euo pipefail
-          TS=$(date +'%Y%m%d-%H%M%S')
-          ZIP="app-$TS-${GITHUB_SHA::7}.zip"
-          cd app || true
-          if [ -d public ]; then
-            zip -r "../$ZIP" public
-          else
-            echo "No app/package.json and no app/public — nothing to package" >&2
-            exit 1
-          fi
-          echo "artifact=$ZIP" >> $GITHUB_OUTPUT
-
-      - name: Pick artifact
-        id: pick
-        run: |
-          if [ -n "${{ steps.build_node.outputs.artifact }}" ]; then
-            echo "key=${{ steps.build_node.outputs.artifact }}" >> $GITHUB_OUTPUT
-          else
-            echo "key=${{ steps.pack_static.outputs.artifact }}" >> $GITHUB_OUTPUT
-          fi
-
-      - name: Upload artifact to S3
-        run: |
-          set -euo pipefail
-          aws s3 cp "${{ steps.pick.outputs.key }}" "s3://${{ steps.ssm.outputs.bucket }}/artifacts/${{ steps.pick.outputs.key }}"
-
-      - name: Update SSM parameters
-        run: |
-          set -euo pipefail
-          aws ssm put-parameter --name "${PARAM_PATH}/app/artifact_key" --type String --overwrite --value "artifacts/${{ steps.pick.outputs.key }}"
+          aws ssm put-parameter --name "${PARAM_PATH}/app/artifact_key"   --type String --overwrite --value "artifacts/${{ steps.pack.outputs.name }}"
+          aws ssm put-parameter --name "${PARAM_PATH}/app/artifact_md5"   --type String --overwrite --value "${{ steps.pack.outputs.md5 }}"
           aws ssm put-parameter --name "${PARAM_PATH}/app/last_deploy_sha"  --type String --overwrite --value "${GITHUB_SHA}"
           aws ssm put-parameter --name "${PARAM_PATH}/app/last_deploy_time" --type String --overwrite --value "$(date -u +'%Y-%m-%dT%H:%M:%SZ')"
-
-      - name: Start ASG Instance Refresh
-        env:
-          ASG_PARAM: ${{ env.PARAM_PATH }}/asg_name
-        run: |
-          set -euo pipefail
-          if aws ssm get-parameter --name "$ASG_PARAM" >/dev/null 2>&1; then
-            ASG_NAME=$(aws ssm get-parameter --name "$ASG_PARAM" --query 'Parameter.Value' --output text)
-          else
-            ASG_NAME="multi-tier-demo-asg"
-          fi
-          aws autoscaling start-instance-refresh --auto-scaling-group-name "$ASG_NAME" \
-            --preferences 'MinHealthyPercentage=90,InstanceWarmup=30' --strategy Rolling

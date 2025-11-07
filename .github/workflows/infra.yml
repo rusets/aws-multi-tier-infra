@@ -33,18 +33,16 @@ env:
 
 concurrency:
   group: infra-${{ github.ref }}
-  cancel-in-progress: false
+  cancel-in-progress: true
 
 jobs:
   terraform:
     runs-on: ubuntu-latest
     outputs:
       applied: ${{ steps.set_out.outputs.applied }}
-
     defaults:
       run:
         working-directory: infra
-
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -75,15 +73,6 @@ jobs:
       - name: Terraform validate
         run: terraform validate
 
-      - name: Import IAM roles/policies if missing
-        run: |
-          set -euo pipefail
-          ACCT=$(aws sts get-caller-identity --query Account --output text)
-          terraform state show aws_iam_role.github_tf >/dev/null 2>&1 || terraform import aws_iam_role.github_tf multi-tier-demo-github-tf
-          terraform state show aws_iam_role.github_app >/dev/null 2>&1 || terraform import aws_iam_role.github_app multi-tier-demo-github-app
-          terraform state show aws_iam_policy.tf_iam_extras >/dev/null 2>&1 || terraform import aws_iam_policy.tf_iam_extras arn:aws:iam::${ACCT}:policy/multi-tier-demo-tf-iam-extras
-          terraform state show aws_iam_policy.ec2_s3_read  >/dev/null 2>&1 || terraform import aws_iam_policy.ec2_s3_read  arn:aws:iam::${ACCT}:policy/multi-tier-demo-ec2-s3-read
-
       - name: Terraform plan (apply)
         if: ${{ env.ACTION == 'apply' }}
         run: terraform plan -input=false -out=tfplan
@@ -96,38 +85,6 @@ jobs:
         id: set_out
         if: ${{ env.ACTION == 'apply' }}
         run: echo "applied=true" >> $GITHUB_OUTPUT
-
-      - name: Drop github_tf role from state
-        if: ${{ env.ACTION == 'destroy' }}
-        run: terraform state rm aws_iam_role.github_tf || true
-
-      - name: Drop github_app role from state
-        if: ${{ env.ACTION == 'destroy' }}
-        run: terraform state rm aws_iam_role.github_app || true
-
-      - name: Drop tf_poweruser attach from state
-        if: ${{ env.ACTION == 'destroy' }}
-        run: terraform state rm aws_iam_role_policy_attachment.tf_poweruser || true
-
-      - name: Drop tf_iam_extras attach from state
-        if: ${{ env.ACTION == 'destroy' }}
-        run: terraform state rm aws_iam_role_policy_attachment.tf_iam_extras_attach || true
-
-      - name: Drop github_app inline policy (artifacts+ssm) from state
-        if: ${{ env.ACTION == 'destroy' }}
-        run: terraform state rm aws_iam_role_policy.github_app_artifacts_and_ssm || true
-
-      - name: Drop github_app inline policy (asg refresh) from state
-        if: ${{ env.ACTION == 'destroy' }}
-        run: terraform state rm aws_iam_role_policy.github_app_asg_refresh || true
-
-      - name: Drop tf_iam_extras policy from state
-        if: ${{ env.ACTION == 'destroy' }}
-        run: terraform state rm aws_iam_policy.tf_iam_extras || true
-
-      - name: Drop ec2_s3_read policy from state
-        if: ${{ env.ACTION == 'destroy' }}
-        run: terraform state rm aws_iam_policy.ec2_s3_read || true
 
       - name: Terraform plan (destroy)
         if: ${{ env.ACTION == 'destroy' }}
