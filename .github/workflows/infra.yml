@@ -114,6 +114,18 @@ jobs:
         if: ${{ env.ACTION == 'destroy' && env.AUTO_APPROVE == 'true' }}
         run: terraform apply -input=false -auto-approve -lock-timeout=${{ env.TF_LOCK_TIMEOUT }} tfplan -no-color
 
+      - name: Arm reaper and set last_wake (after apply)
+        if: ${{ env.ACTION == 'apply' }}
+        run: |
+          aws ssm put-parameter --region ${{ env.AWS_REGION }} --name /multi-tier-demo/last_wake --type String --overwrite --value $(date -u +%s)
+          aws ssm put-parameter --region ${{ env.AWS_REGION }} --name /multi-tier-demo/reaper_armed --type String --overwrite --value on
+
+      - name: Disarm reaper (after destroy)
+        if: ${{ env.ACTION == 'destroy' }}
+        run: |
+          aws ssm put-parameter --region ${{ env.AWS_REGION }} --name /multi-tier-demo/reaper_armed --type String --overwrite --value off
+          aws ssm delete-parameter --region ${{ env.AWS_REGION }} --name /multi-tier-demo/destroy_dispatched_epoch || true
+
   deploy_app:
     needs: terraform
     if: ${{ needs.terraform.outputs.applied == 'true' }}
