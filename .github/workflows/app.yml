@@ -43,24 +43,28 @@ jobs:
         id: pack
         run: |
           set -euo pipefail
+
           if [ -f app/package.json ]; then
             pushd app >/dev/null
+
             if [ -f package-lock.json ] || [ -f npm-shrinkwrap.json ]; then
               npm ci --omit=dev
             else
               npm install --omit=dev
             fi
+
             npm run build || true
+            zip -r ../app-build.zip . -x "node_modules/**" ".cache/**"
             popd >/dev/null
-            zip -r app-build.zip app -x "app/node_modules/**" "app/.cache/**"
           else
             if [ -d app/public ]; then
-              (cd app && zip -r ../app-build.zip public)
+              (cd app/public && zip -r ../../app-build.zip .)
             else
               echo "No app/package.json and no app/public — nothing to package" >&2
               exit 1
             fi
           fi
+
           if command -v md5sum >/dev/null 2>&1; then
             MD5=$(md5sum app-build.zip | awk '{print $1}')
           else
