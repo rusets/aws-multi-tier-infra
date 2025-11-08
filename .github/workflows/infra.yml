@@ -30,6 +30,7 @@ permissions:
 env:
   AWS_REGION: us-east-1
   TF_IN_AUTOMATION: "1"
+  TF_LOCK_TIMEOUT: 10m
   ACTION: ${{ github.event_name == 'workflow_dispatch' && inputs.action || (github.event_name == 'repository_dispatch' && github.event.action == 'wake' && github.event.client_payload.action) || 'apply' }}
   AUTO_APPROVE: ${{ github.event_name == 'workflow_dispatch' && inputs.auto_approve || (github.event_name == 'repository_dispatch' && github.event.action == 'wake' && github.event.client_payload.auto_approve) || 'true' }}
   TF_VAR_hosted_zone_id: ${{ secrets.HOSTED_ZONE_ID }}
@@ -37,7 +38,7 @@ env:
   TF_VAR_ami_id: ami-0157af9aea2eef346
 
 concurrency:
-  group: infra-${{ github.ref }}
+  group: infra-${{ github.ref || 'refs/heads/main' }}
   cancel-in-progress: true
 
 jobs:
@@ -52,6 +53,8 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - name: Setup Terraform
         uses: hashicorp/setup-terraform@v3
@@ -84,31 +87,31 @@ jobs:
         run: terraform fmt -check -recursive
 
       - name: Terraform init
-        run: terraform init -input=false
+        run: terraform init -input=false -no-color
 
       - name: Terraform validate
-        run: terraform validate
+        run: terraform validate -no-color
 
       - name: Terraform plan (apply)
         if: ${{ env.ACTION == 'apply' }}
-        run: terraform plan -input=false -out=tfplan
+        run: terraform plan -input=false -lock-timeout=${{ env.TF_LOCK_TIMEOUT }} -out=tfplan -no-color
 
       - name: Terraform apply saved plan
         if: ${{ env.ACTION == 'apply' && env.AUTO_APPROVE == 'true' }}
-        run: terraform apply -input=false -auto-approve tfplan
+        run: terraform apply -input=false -auto-approve -lock-timeout=${{ env.TF_LOCK_TIMEOUT }} tfplan -no-color
 
       - name: Set output "applied"
         id: set_out
         if: ${{ env.ACTION == 'apply' }}
-        run: echo "applied=true" >> $GITHUB_OUTPUT
+        run: echo "applied=true" >> "$GITHUB_OUTPUT"
 
       - name: Terraform plan (destroy)
         if: ${{ env.ACTION == 'destroy' }}
-        run: terraform plan -destroy -input=false -out=tfplan
+        run: terraform plan -destroy -input=false -lock-timeout=${{ env.TF_LOCK_TIMEOUT }} -out=tfplan -no-color
 
       - name: Terraform destroy saved plan
         if: ${{ env.ACTION == 'destroy' && env.AUTO_APPROVE == 'true' }}
-        run: terraform apply -input=false -auto-approve tfplan
+        run: terraform apply -input=false -auto-approve -lock-timeout=${{ env.TF_LOCK_TIMEOUT }} tfplan -no-color
 
   deploy_app:
     needs: terraform
