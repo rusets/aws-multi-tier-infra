@@ -97,151 +97,145 @@
   <footer>Built with AWS · Terraform · GitHub Actions</footer>
 
   <script>
-    const WAKE_URL   = "https://e40una40of.execute-api.us-east-1.amazonaws.com/prod/wake";
-    const STATUS_URL = "https://e40una40of.execute-api.us-east-1.amazonaws.com/prod/status";
-    const OPEN_URL   = "https://multi-tier.space/";
+  const WAKE_URL   = "https://e40una40of.execute-api.us-east-1.amazonaws.com/prod/wake";
+  const STATUS_URL = "https://e40una40of.execute-api.us-east-1.amazonaws.com/prod/status";
+  const OPEN_URL   = "https://multi-tier.space/";
 
-    const COOLDOWN_MS = 2 * 60 * 1000;                  // 2 минуты между нажатиями
-    const LSK = {                                       // ключи localStorage
-      COOLDOWN_UNTIL: "wake.cooldownUntil",
-      IDEMPOTENCY:    "wake.idempotencyKey",
-      INPROGRESS:     "wake.inProgress"
-    };
+  const BTN_OPEN = document.getElementById("open");
+  const BTN_WAKE = document.getElementById("wake");
+  const TEXT     = document.getElementById("status-text");
+  const SUB      = document.getElementById("subtitle");
+  const BAR      = document.getElementById("bar");
+  const SPINNER  = document.getElementById("spinner");
 
-    const BTN_OPEN = document.getElementById("open");
-    const BTN_WAKE = document.getElementById("wake");
-    const TEXT     = document.getElementById("status-text");
-    const SUB      = document.getElementById("subtitle");
-    const BAR      = document.getElementById("bar");
-    const SPINNER  = document.getElementById("spinner");
+  const STAGES = [
+    { id:"s1", label:"VPC" },
+    { id:"s2", label:"DB" },
+    { id:"s3", label:"ASG / ALB" },
+    { id:"s4", label:"App" }
+  ];
 
-    const STAGES = [{id:"s1"},{id:"s2"},{id:"s3"},{id:"s4"}];
+  let stageIndex = 0;
+  let percent = 0;
+  let pollTimer = null;
+  const COOLDOWN_SEC = 60;
+  const LS_KEY = "wake_last_ts";
 
-    let wakeSent   = false;
-    let stageIndex = 0;
-    let percent    = 0;
-    let pollTimer  = null;
-    let cdTimer    = null;
+  function setStage(idx){
+    STAGES.forEach((s, i)=>{
+      const el = document.getElementById(s.id);
+      el.classList.remove("active","done");
+      if (i < idx) el.classList.add("done");
+      if (i === idx) el.classList.add("active");
+    });
+  }
+  function setPercent(p){ percent = Math.max(0, Math.min(100, p)); BAR.style.width = percent + "%"; }
+  function bumpPseudoProgress(){
+    if (percent >= 96) return;
+    const step = (stageIndex < 1 ? 2.0 : stageIndex < 2 ? 1.6 : 1.2);
+    setPercent(percent + step);
+    if (percent > 24 && stageIndex === 0) { stageIndex = 1; setStage(stageIndex); SUB.textContent = "Creating database (RDS)…"; }
+    if (percent > 55 && stageIndex === 1) { stageIndex = 2; setStage(stageIndex); SUB.textContent = "Bootstrapping ASG and ALB…"; }
+    if (percent > 80 && stageIndex === 2) { stageIndex = 3; setStage(stageIndex); SUB.textContent = "Deploying application…"; }
+  }
 
-    function setStage(idx){
-      STAGES.forEach((s, i)=>{
-        const el = document.getElementById(s.id);
-        el.classList.remove("active","done");
-        if (i < idx) el.classList.add("done");
-        if (i === idx) el.classList.add("active");
-      });
+  function msLeftCooldown(){
+    const last = Number(localStorage.getItem(LS_KEY) || "0");
+    const now = Date.now();
+    const left = last + COOLDOWN_SEC*1000 - now;
+    return Math.max(0, left);
+  }
+  function applyCooldownUI(){
+    const left = Math.ceil(msLeftCooldown()/1000);
+    if (left > 0){
+      BTN_WAKE.disabled = true;
+      BTN_WAKE.textContent = `Wake up (${left}s)`;
+    } else {
+      BTN_WAKE.disabled = false;
+      BTN_WAKE.textContent = "Wake up";
     }
-    function setPercent(p){ percent = Math.max(0, Math.min(100, p)); BAR.style.width = percent + "%"; }
-    function bumpPseudoProgress(){
-      if (percent >= 96) return;
-      const step = (stageIndex < 1 ? 2.0 : stageIndex < 2 ? 1.6 : 1.2);
-      setPercent(percent + step);
-      if (percent > 24 && stageIndex === 0) { stageIndex = 1; setStage(stageIndex); SUB.textContent = "Creating database (RDS)…"; }
-      if (percent > 55 && stageIndex === 1) { stageIndex = 2; setStage(stageIndex); SUB.textContent = "Bootstrapping ASG and ALB…"; }
-      if (percent > 80 && stageIndex === 2) { stageIndex = 3; setStage(stageIndex); SUB.textContent = "Deploying application…"; }
-    }
+  }
+  let cooldownTimer = null;
+  function startCooldownTick(){
+    if (cooldownTimer) clearInterval(cooldownTimer);
+    cooldownTimer = setInterval(()=>{
+      applyCooldownUI();
+      if (msLeftCooldown() === 0) { clearInterval(cooldownTimer); cooldownTimer = null; }
+    }, 500);
+  }
 
-    function now(){ return Date.now(); }
-    function genIdemKey(){
-      const old = localStorage.getItem(LSK.IDEMPOTENCY);
-      if (old) return old;
-      const v = crypto.randomUUID ? crypto.randomUUID() : String(Math.random()).slice(2) + Date.now();
-      localStorage.setItem(LSK.IDEMPOTENCY, v);
-      return v;
-    }
-    function setCooldown(ms){
-      const until = now() + ms;
-      localStorage.setItem(LSK.COOLDOWN_UNTIL, String(until));
-      updateCooldownUI();
-    }
-    function getCooldownLeft(){
-      const until = Number(localStorage.getItem(LSK.COOLDOWN_UNTIL) || 0);
-      return Math.max(0, until - now());
-    }
-    function fmtLeft(ms){
-      const s = Math.ceil(ms/1000);
-      const m = Math.floor(s/60);
-      const r = s % 60;
-      return m > 0 ? `${m}:${String(r).padStart(2,"0")}` : `${r}s`;
-    }
-    function updateCooldownUI(){
-      const left = getCooldownLeft();
-      if (left > 0 || localStorage.getItem(LSK.INPROGRESS) === "1") {
-        BTN_WAKE.disabled = true;
-        BTN_WAKE.textContent = left > 0 ? `Wake up (${fmtLeft(left)})` : "Wake up (working…)";
-        if (!cdTimer) cdTimer = setInterval(updateCooldownUI, 500);
-      } else {
-        BTN_WAKE.disabled = false;
-        BTN_WAKE.textContent = "Wake up";
-        if (cdTimer){ clearInterval(cdTimer); cdTimer = null; }
-      }
-    }
-
-    async function pollStatus(){
-      try{
-        const res = await fetch(STATUS_URL, { headers: { 'Cache-Control':'no-store' } });
-        const data = await res.json();
-        const state = String(data.state || "").toLowerCase();
-        if (state === "ready"){
-          setStage(4); setPercent(100);
-          TEXT.textContent = "Environment is ready — open the app.";
-          BTN_OPEN.disabled = false;
-          BTN_OPEN.textContent = "Open App 🚀";
-          SUB.textContent = "All systems go.";
-          SPINNER.classList.remove("go"); SPINNER.classList.add("stop");
-          localStorage.removeItem(LSK.INPROGRESS);
-          updateCooldownUI();
-          if (pollTimer) { clearTimeout(pollTimer); pollTimer = null; }
-          return;
-        } else {
-          TEXT.textContent = "Waking up… we’ll check again shortly.";
-        }
-      }catch(e){
-        TEXT.textContent = "Waiting for connection…";
-      }
-      bumpPseudoProgress();
-      pollTimer = setTimeout(pollStatus, 7000);
-    }
-
-    BTN_OPEN.addEventListener("click", () => window.location.href = OPEN_URL);
-
-    BTN_WAKE.addEventListener("click", async () => {
-      // защита: кулдаун или уже идёт процесс
-      if (getCooldownLeft() > 0 || localStorage.getItem(LSK.INPROGRESS) === "1") {
-        updateCooldownUI();
+  async function pollStatus(){
+    try{
+      const res = await fetch(STATUS_URL, { headers: { 'Cache-Control':'no-store' } });
+      const data = await res.json();
+      const state = String(data.state || "").toLowerCase(); // expected: idle|starting|applying|ready|error
+      if (state === "ready"){
+        setStage(4); setPercent(100);
+        TEXT.textContent = "Environment is ready — open the app.";
+        BTN_OPEN.disabled = false;
+        BTN_OPEN.textContent = "Open App 🚀";
+        SUB.textContent = "All systems go.";
+        SPINNER.classList.remove("go"); SPINNER.classList.add("stop");
+        BTN_WAKE.disabled = false; BTN_WAKE.textContent = "Wake up";
+        if (pollTimer) { clearTimeout(pollTimer); pollTimer = null; }
         return;
       }
-
-      // включаем кулдаун и идёт процесс
-      setCooldown(COOLDOWN_MS);
-      localStorage.setItem(LSK.INPROGRESS, "1");
-      BTN_WAKE.disabled = true;
-      BTN_WAKE.textContent = "Wake up (working…)";
-
-      // отправляем wake c идемпотентным ключом
-      const headers = new Headers();
-      headers.set("X-Idempotency-Key", genIdemKey());
-      try { await fetch(WAKE_URL, { method:"POST", mode:"no-cors", headers }); } catch(e) {}
-
-      if (!wakeSent){
-        wakeSent = true;
-        setStage(0);
-        setPercent(3);
+      if (state === "idle"){
+        TEXT.textContent = "Idle — press Wake up to start the environment.";
+        SUB.textContent = "Click “Wake up” to begin.";
+        SPINNER.classList.remove("go"); SPINNER.classList.remove("stop");
+        applyCooldownUI();
+      } else if (state === "starting" || state === "applying"){
+        BTN_WAKE.disabled = true;
+        BTN_WAKE.textContent = "Waking…";
         SPINNER.classList.add("go");
-        TEXT.textContent = "Wake signal sent. Initializing…";
-        SUB.textContent  = "Provisioning resources…";
-        pollStatus();
+        TEXT.textContent = "Waking up… we’ll check again shortly.";
+        bumpPseudoProgress();
+      } else if (state === "error"){
+        SPINNER.classList.remove("go");
+        TEXT.textContent = "There was an error. You can try Wake up again.";
+        applyCooldownUI();
+      } else {
+        TEXT.textContent = "Waiting for connection…";
       }
-      updateCooldownUI();
-    });
+    }catch(e){
+      TEXT.textContent = "Waiting for connection…";
+    }
+    pollTimer = setTimeout(pollStatus, 7000);
+  }
 
-    // синхронизация вкладок
-    window.addEventListener("storage", (e)=>{
-      if ([LSK.COOLDOWN_UNTIL, LSK.INPROGRESS].includes(e.key)) updateCooldownUI();
-    });
+  BTN_OPEN.addEventListener("click", () => window.location.href = OPEN_URL);
 
-    // при загрузке — никаких авто-вызовов
-    updateCooldownUI();
-  </script>
+BTN_WAKE.addEventListener("click", async () => {
+  if (msLeftCooldown() > 0) return;
+  localStorage.setItem(LS_KEY, String(Date.now()));
+  applyCooldownUI();
+  startCooldownTick();
+
+  try {
+    const r = await fetch(WAKE_URL, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ reason: "manual" }),
+      cache: "no-store",
+      mode: "cors",
+      credentials: "omit"
+    });
+    if (!(r.ok || r.status === 202)) throw new Error(`Wake failed: ${r.status}`);
+  } catch (e) {
+    console.error(e);
+    TEXT.textContent = `Wake error: ${e.message}`;
+    return;
+  }
+
+  setStage(0); setPercent(3);
+  SPINNER.classList.add("go");
+  TEXT.textContent = "Wake signal sent. Initializing…";
+  SUB.textContent  = "Provisioning resources…";
+});
+
+  applyCooldownUI();
+  pollStatus();
+</script>
 </body>
 </html>

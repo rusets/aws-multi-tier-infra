@@ -150,23 +150,24 @@ resource "aws_lambda_function" "wake" {
 
   environment {
     variables = {
-      REGION         = var.region
-      GH_SECRET_NAME = var.gh_secret_name
-      GH_OWNER       = var.gh_owner
-      GH_REPO        = var.gh_repo
-      GH_WORKFLOW    = var.gh_workflow
-      GH_REF         = var.gh_ref
-      # Optional: S3 status drop (safe if empty)
-      S3_BUCKET = try(var.wait_site_bucket_name, "")
-      S3_PREFIX = try(var.wait_site_prefix, "")
+      GH_OWNER           = "rusets"
+      GH_REPO            = "aws-multi-tier-infra"
+      GITHUB_WORKFLOW_ID = "204971868"
+      GH_REF             = "main"
+
+      SSM_TOKEN_PARAM = "/gh/actions/token"
+      TOKEN_SOURCE    = "ssm"
+
+      S3_BUCKET = var.wait_site_bucket_name
+      S3_PREFIX = var.wait_site_prefix
+      REGION    = var.region
     }
   }
 
-  depends_on = [
-    data.archive_file.wake_zip,
-  ]
+  lifecycle {
+    ignore_changes = [environment]
+  }
 }
-
 resource "aws_cloudwatch_log_group" "wake" {
   name              = "/aws/lambda/${aws_lambda_function.wake.function_name}"
   retention_in_days = var.lambda_log_retention_days
