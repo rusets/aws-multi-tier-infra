@@ -43,6 +43,7 @@ concurrency:
 
 jobs:
   terraform:
+    if: ${{ vars.INFRA_ARMED == 'on' }}
     runs-on: ubuntu-latest
     outputs:
       applied: ${{ steps.set_out.outputs.applied }}
