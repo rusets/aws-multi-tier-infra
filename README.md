@@ -18,7 +18,7 @@ flowchart TD
   GH --> TF["Terraform apply/destroy"]
 
   subgraph AWS["AWS Infrastructure"]
-    TF --> EC2["EC2 (K3s Node)"]
+    TF --> EC2["EC2 Instance"]
     TF --> DB["RDS MySQL (Private Subnet)"]
     TF --> ALB["Application Load Balancer"]
     EC2 --> APP["Notes App"]
@@ -45,7 +45,7 @@ flowchart TD
 |----------|----------|
 | **Lambda** | Wake, Status, Heartbeat, Idle-Reaper automation |
 | **API Gateway (HTTP)** | Public endpoint for wake/status triggers |
-| **EC2 (Amazon Linux 2023)** | K3s-based lightweight cluster running demo app |
+| **EC2 (Amazon Linux 2023)** | Application host for backend service |
 | **RDS (MySQL, Private Subnet)** | Secure database isolated from public access |
 | **S3 + CloudFront** | Static wait-site hosting (https://app.multi-tier.space) |
 | **SSM Parameter Store** | Secure config & secret storage |
@@ -79,33 +79,43 @@ It demonstrates how a full stack application can be deployed, managed, and autom
 
 **Features:**
 - Add, list, and delete notes through a simple REST API.  
-- Backend served on **K3s EC2 Node** (NodePort `30080`).  
 - Frontend hosted on **S3 + CloudFront** (`https://app.multi-tier.space`).  
 - Data persisted in **Amazon RDS (MySQL)**, located **in a private subnet** for enhanced security.  
-- API endpoints exposed via **Ingress / ALB** with health checks.
+- API endpoints exposed via **Application Load Balancer** with health checks.
 
-**App structure:**
+**Project structure:**
 ```
 aws-multi-tier-infra/
-├── app/                     # Notes application code
-│   ├── server.js            # Express.js backend (REST API)
-│   ├── package.json         # Node.js dependencies
-│   ├── public/
-│   │   ├── index.html       # Bootstrap-based UI
-│   │   ├── script.js        # Fetch API to call backend
-│   │   └── style.css
-│   └── Dockerfile           # Container definition
-├── infra/                   # Terraform IaC
-│   ├── main.tf              # Core resources
-│   ├── variables.tf         # Configuration inputs
-│   ├── outputs.tf           # Outputs (URLs, IDs, etc.)
-│   ├── backend.tf           # Remote state (S3 + DynamoDB)
-│   ├── control-plane/       # Lambda packaging and schedules
-│   └── .terraform.lock.hcl  # Provider lock file
-├── .github/workflows/       # GitHub Actions automation
-│   ├── infra.yml            # Deploy/destroy workflow
-│   └── app.yml              # Optional app redeploy workflow
-└── docs/                    # Diagrams and screenshots
+├── app
+│   ├── package.json
+│   ├── public
+│   └── server.js
+├── bootstrap
+│   └── user_data.sh
+├── build
+├── docs
+├── infra
+│   ├── alb_domain.tf
+│   ├── artifacts.tf
+│   ├── backend.tf
+│   ├── control-plane
+│   ├── locals.paths.tf
+│   ├── main.tf
+│   ├── outputs.tf
+│   ├── providers.tf
+│   ├── ssm.tf
+│   ├── terraform.tfvars
+│   └── variables.tf
+├── lambda
+│   ├── heartbeat
+│   ├── idle_reaper
+│   ├── status
+│   └── wake
+├── README.md
+├── scripts
+│   └── rdapp.service
+└── wait-site
+    └── index.html
 ```
 
 The **Notes App** serves as a realistic, minimal workload for demonstrating:
