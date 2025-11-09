@@ -61,4 +61,4 @@ trust-policy.json
 
 # Local tfvars (never commit credentials)
 infra/control-plane/terraform.tfvars
-**/terraform.tfvars
+**/terraform.tfvars.terraform.lock.hcl
