@@ -19,7 +19,7 @@ flowchart TD
 
   subgraph AWS["AWS Infrastructure"]
     TF --> EC2["EC2 (K3s Node)"]
-    TF --> DB["RDS MySQL"]
+    TF --> DB["RDS MySQL (Private Subnet)"]
     TF --> ALB["Application Load Balancer"]
     EC2 --> APP["Notes App"]
   end
@@ -46,7 +46,7 @@ flowchart TD
 | **Lambda** | Wake, Status, Heartbeat, Idle-Reaper automation |
 | **API Gateway (HTTP)** | Public endpoint for wake/status triggers |
 | **EC2 (Amazon Linux 2023)** | K3s-based lightweight cluster running demo app |
-| **RDS (MySQL)** | Application database, started/stopped dynamically |
+| **RDS (MySQL, Private Subnet)** | Secure database isolated from public access |
 | **S3 + CloudFront** | Static wait-site hosting (https://app.multi-tier.space) |
 | **SSM Parameter Store** | Secure config & secret storage |
 | **DynamoDB** | Terraform state locking table |
@@ -81,7 +81,7 @@ It demonstrates how a full stack application can be deployed, managed, and autom
 - Add, list, and delete notes through a simple REST API.  
 - Backend served on **K3s EC2 Node** (NodePort `30080`).  
 - Frontend hosted on **S3 + CloudFront** (`https://app.multi-tier.space`).  
-- Data persisted in **Amazon RDS (MySQL)**.  
+- Data persisted in **Amazon RDS (MySQL)**, located **in a private subnet** for enhanced security.  
 - API endpoints exposed via **Ingress / ALB** with health checks.
 
 **App structure:**
@@ -120,7 +120,8 @@ The **Notes App** serves as a realistic, minimal workload for demonstrating:
 
 - Auto-destroy idle infrastructure via Idle-Reaper Lambda.
 - Stateless backend (S3 + DynamoDB) allows fast re-provisioning.
-- Uses minimal EC2 (t3.small) and RDS to stay within credits.
+- Uses minimal EC2 (t3.small) and RDS (free-tier) to stay within credits.
+- Database is deployed in **private subnets** with no public exposure.  
 - Static website hosted on S3 + CloudFront (no compute cost).
 - GitHub OIDC replaces long-lived IAM keys.
 
