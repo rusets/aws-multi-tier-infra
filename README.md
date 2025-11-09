@@ -140,12 +140,10 @@ aws-multi-tier-infra/
 ├── build
 ├── docs
 ├── infra
-│   ├── .terraform.lock.hcl
 │   ├── alb_domain.tf
 │   ├── artifacts.tf
 │   ├── backend.tf
 │   ├── control-plane/
-│   │   ├── .terraform.lock.hcl
 │   │   ├── api.tf
 │   │   ├── backend.tf
 │   │   ├── dist/
