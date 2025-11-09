@@ -118,15 +118,11 @@ aws-multi-tier-infra/
 ├── build
 ├── docs
 ├── infra
-│   ├── .terraform/
-│   │   ├── providers/
-│   │   └── terraform.tfstate
 │   ├── .terraform.lock.hcl
 │   ├── alb_domain.tf
 │   ├── artifacts.tf
 │   ├── backend.tf
 │   ├── control-plane/
-│   │   ├── .terraform/
 │   │   ├── .terraform.lock.hcl
 │   │   ├── api.tf
 │   │   ├── backend.tf
@@ -134,7 +130,6 @@ aws-multi-tier-infra/
 │   │   ├── idle.tf
 │   │   ├── lambdas.tf
 │   │   ├── outputs.tf
-│   │   ├── terraform.tfvars
 │   │   ├── terraform.tfvars.example
 │   │   ├── variables.tf
 │   │   └── versions.tf
@@ -143,7 +138,6 @@ aws-multi-tier-infra/
 │   ├── outputs.tf
 │   ├── providers.tf
 │   ├── ssm.tf
-│   ├── terraform.tfvars
 │   └── variables.tf
 ├── lambda
 │   ├── heartbeat
