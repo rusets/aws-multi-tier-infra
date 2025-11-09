@@ -1,5 +1,3 @@
-// Minimal Express + PG app (hardened: safe JSON, HSTS, DB-ready probe, graceful shutdown)
-
 const express = require("express");
 const path = require("path");
 const { Pool } = require("pg");
@@ -109,8 +107,6 @@ app.get("/", (_req, res) =>
 
 async function startWithRetries(maxSeconds = 90) {
   const deadline = Date.now() + maxSeconds * 1000;
-  // warm-up: wait until DB accepts connections
-  // avoids flapping health checks during ASG launch
   while (true) {
     try {
       await pool.query("SELECT 1");

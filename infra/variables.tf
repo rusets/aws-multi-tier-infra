@@ -1,6 +1,9 @@
 ############################################
+# Variables — core infrastructure configuration
+############################################
+
+############################################
 # Global Project Name
-# Applied as prefix and tag across all resources
 ############################################
 variable "project_name" {
   type        = string
@@ -15,7 +18,6 @@ variable "project_name" {
 
 ############################################
 # AWS Region
-# Centralized region configuration for all providers
 ############################################
 variable "region" {
   type        = string
@@ -30,7 +32,6 @@ variable "region" {
 
 ############################################
 # VPC CIDR Block
-# Primary CIDR range for the main VPC
 ############################################
 variable "vpc_cidr" {
   type        = string
@@ -45,7 +46,6 @@ variable "vpc_cidr" {
 
 ############################################
 # EC2 Instance Type
-# Defines compute size for application nodes
 ############################################
 variable "instance_type" {
   type        = string
@@ -60,7 +60,6 @@ variable "instance_type" {
 
 ############################################
 # RDS Engine Type
-# Supported values: postgres, mysql
 ############################################
 variable "rds_engine" {
   type        = string
@@ -75,7 +74,6 @@ variable "rds_engine" {
 
 ############################################
 # RDS Master Username
-# Password is managed automatically by AWS
 ############################################
 variable "rds_username" {
   type        = string
@@ -90,7 +88,6 @@ variable "rds_username" {
 
 ############################################
 # Admin Access CIDR
-# Allows SSH access; leave empty to disable (use SSM)
 ############################################
 variable "admin_cidr" {
   type        = string
@@ -105,7 +102,6 @@ variable "admin_cidr" {
 
 ############################################
 # SSM Base Path
-# Optional; defaults to "/<namespace>" if not provided
 ############################################
 variable "param_path" {
   type        = string
@@ -120,7 +116,6 @@ variable "param_path" {
 
 ############################################
 # Application Port
-# Internal port behind the ALB Target Group
 ############################################
 variable "app_port" {
   type        = number
@@ -135,7 +130,6 @@ variable "app_port" {
 
 ############################################
 # Health Check Settings
-# Used by ALB Target Group for availability checks
 ############################################
 variable "health_check_path" {
   type        = string
@@ -161,7 +155,6 @@ variable "health_check_matcher" {
 
 ############################################
 # Namespace
-# Root prefix for SSM parameter names
 ############################################
 variable "namespace" {
   type        = string
@@ -174,8 +167,9 @@ variable "namespace" {
   }
 }
 
-
-
+############################################
+# SSM Configuration
+############################################
 variable "ssm_write_db_password" {
   type    = bool
   default = false
@@ -196,7 +190,6 @@ variable "ssm_kms_key_id" {
 
 ############################################
 # Application Artifact Key
-# S3 object key for app ZIP uploaded by CI
 ############################################
 variable "app_artifact_key" {
   type        = string
@@ -211,7 +204,6 @@ variable "app_artifact_key" {
 
 ############################################
 # GitHub Repository Access
-# Defines repo allowed to assume OIDC roles
 ############################################
 variable "github_repo" {
   type        = string
@@ -226,7 +218,6 @@ variable "github_repo" {
 
 ############################################
 # GitHub OIDC Provider ARN
-# Pre-existing provider configured in IAM
 ############################################
 variable "github_oidc_provider_arn" {
   type        = string
@@ -241,7 +232,6 @@ variable "github_oidc_provider_arn" {
 
 ############################################
 # Database Name
-# Logical name used by the app and SSM parameters
 ############################################
 variable "db_name" {
   type        = string
@@ -256,7 +246,6 @@ variable "db_name" {
 
 ############################################
 # GitHub Ref Pattern
-# Controls which refs (branches/tags) can assume OIDC roles
 ############################################
 variable "github_ref_pattern" {
   type        = string
@@ -271,7 +260,6 @@ variable "github_ref_pattern" {
 
 ############################################
 # Auto Scaling Group Size
-# Defines desired, min, and max capacity of app tier
 ############################################
 variable "asg_min_size" {
   type        = number
@@ -292,7 +280,7 @@ variable "asg_desired_capacity" {
 }
 
 ############################################
-# Inputs — reuse manual Hosted Zone + ACM
+# Domain and Certificate Inputs
 ############################################
 variable "domain_name" {
   description = "Primary domain (e.g., multi-tier.space)"
@@ -316,6 +304,9 @@ variable "enable_www_alias" {
   default     = true
 }
 
+############################################
+# Launch Template AMI
+############################################
 variable "ami_id" {
   description = "Pinned AMI ID for the Launch Template (ami-*)"
   type        = string

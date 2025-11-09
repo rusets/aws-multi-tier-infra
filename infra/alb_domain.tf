@@ -1,8 +1,3 @@
-############################################
-# ALB Domain / Security Groups (Variant B)
-# SG shells без inline-правил; правила — отдельные aws_security_group_rule
-# IPv6 не используем (только IPv4)
-############################################
 
 ############################################
 # App Security Group — instances behind ALB
@@ -24,9 +19,6 @@ resource "aws_security_group" "app_sg" {
   }
 }
 
-############################################
-# ALB Security Group — empty shell (rules = separate resources)
-############################################
 ############################################
 # ALB Security Group — inline rules (80/443 + egress all)
 ############################################
@@ -68,6 +60,7 @@ resource "aws_security_group" "alb_sg" {
     ignore_changes        = [description]
   }
 }
+
 ############################################
 # App SG Rule — allow ALB → app port
 ############################################

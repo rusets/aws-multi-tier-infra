@@ -7,8 +7,8 @@ const s3  = new S3Client({});
 
 const GH_OWNER   = process.env.GH_OWNER;
 const GH_REPO    = process.env.GH_REPO;
-const WF_ID      = process.env.GITHUB_WORKFLOW_ID;        // числовой ID или имя файла
-const GH_REF     = process.env.GH_REF || "main";          // для dispatch нужен 'main', не 'refs/heads/main'
+const WF_ID      = process.env.GITHUB_WORKFLOW_ID;        
+const GH_REF     = process.env.GH_REF || "main";          
 const SSM_PARAM  = process.env.SSM_TOKEN_PARAM || "/gh/actions/token";
 const S3_BUCKET  = process.env.S3_BUCKET || "";
 const S3_PREFIX  = process.env.S3_PREFIX || "";
