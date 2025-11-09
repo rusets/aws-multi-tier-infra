@@ -5,9 +5,12 @@
 ![CI/CD](https://img.shields.io/badge/CI%2FCD-GitHub%20Actions-lightgrey)
 
 🌐 **Wait Page:** [https://app.multi-tier.space](https://app.multi-tier.space)  
-🌐 **Main App (available after provisioning):** [https://multi-tier.space](https://multi-tier.space)
+🌐 **Main App:** [https://multi-tier.space](https://multi-tier.space)
 
-An on-demand, cost-optimized environment that automatically wakes, deploys, and sleeps — powered by **AWS + Terraform + GitHub Actions**.
+This project demonstrates a **fully automated, cost-optimized multi-tier infrastructure on AWS**, provisioned via **Terraform** and orchestrated with **GitHub Actions**.  
+It showcases **on-demand environment wake/sleep**, **secure secret storage (SSM Parameter Store)**, and **serverless orchestration (API Gateway + Lambda)** for real-world DevOps automation.
+
+The solution provisions a complete **three-tier architecture** — frontend, application, and database — and automatically destroys idle resources to achieve near-zero cost.
 
 ---
 
