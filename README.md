@@ -1,3 +1,4 @@
+
 # 🚀 Ruslan AWS — Multi-Tier Infrastructure Demo
 
 ![Terraform](https://img.shields.io/badge/IaC-Terraform-blueviolet)
@@ -107,6 +108,22 @@ When the system is idle, it remains online as a lightweight S3 + CloudFront site
 
 Both `app.multi-tier.space` and `multi-tier.space` domains are managed via **Route 53** and integrated with CloudFront.  
 This design ensures **zero‑cost idle time** — compute resources (EC2, RDS, ALB) are active only while the app is awake, while the static wait‑site remains accessible 24/7.
+
+---
+
+## 📸 Screenshots
+
+![wait-idle](./docs/screens/wait-idle.png)
+
+![wait-progress](./docs/screens/wait-progress.png)
+
+![app-notes](./docs/screens/app-notes.png)
+
+![rds-console](./docs/screens/rds-console.png)
+
+![lambda-heartbeat](./docs/screens/lambda-heartbeat.png)
+
+![gha-runs](./docs/screens/gha-runs.png)
 
 ---
 
