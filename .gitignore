@@ -10,8 +10,8 @@ override.tf.json
 *_override.tf
 *_override.tf.json
 
-# Optional: if you don't want to commit provider lock file
-# .terraform.lock.hcl
+# Always ignore provider lock file (never commit)
+.terraform.lock.hcl
 
 ############################################
 # Terraform plans & artifacts
@@ -57,7 +57,8 @@ Thumbs.db
 # Bootstrap / temp JSON
 ############################################
 tf-allow-iam-bootstrap.json
-# Local tfvars
-infra/control-plane/terraform.tfvars
+trust-policy.json
 
+# Local tfvars (never commit credentials)
+infra/control-plane/terraform.tfvars
 **/terraform.tfvars
