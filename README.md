@@ -118,10 +118,26 @@ aws-multi-tier-infra/
 ├── build
 ├── docs
 ├── infra
+│   ├── .terraform/
+│   │   ├── providers/
+│   │   └── terraform.tfstate
+│   ├── .terraform.lock.hcl
 │   ├── alb_domain.tf
 │   ├── artifacts.tf
 │   ├── backend.tf
-│   ├── control-plane
+│   ├── control-plane/
+│   │   ├── .terraform/
+│   │   ├── .terraform.lock.hcl
+│   │   ├── api.tf
+│   │   ├── backend.tf
+│   │   ├── dist/
+│   │   ├── idle.tf
+│   │   ├── lambdas.tf
+│   │   ├── outputs.tf
+│   │   ├── terraform.tfvars
+│   │   ├── terraform.tfvars.example
+│   │   ├── variables.tf
+│   │   └── versions.tf
 │   ├── locals.paths.tf
 │   ├── main.tf
 │   ├── outputs.tf
@@ -140,12 +156,6 @@ aws-multi-tier-infra/
 └── wait-site
     └── index.html
 ```
-
-The **Notes App** serves as a realistic, minimal workload for demonstrating:
-- Continuous delivery from GitHub → AWS.  
-- Secure parameter storage (DB credentials in SSM).  
-- Full wake → apply → idle → destroy cycle.  
-- Zero-cost idle state and reproducible environment creation.
 
 ---
 
@@ -240,10 +250,7 @@ Optimized for **AWS Free Tier / Student Credits**:
 
 ---
 
-## 🧾 Summary
+## 🧾 License
 
-This project demonstrates **end-to-end automation**: from a user clicking **Wake Up** on a static web page to a **fully deployed multi-tier app**, automatically destroyed when idle.  
-It combines **AWS-native services**, **Terraform**, and **GitHub Actions** into a cost-effective, production-style DevOps showcase.
-
-> _Built with precision and simplicity — from DevOps to design._  
-> **© Ruslan Dashkin (Ruslan AWS)**
+Released under the **MIT License** — feel free to use, fork, and learn from it.  
+© Ruslan Dashkin (Ruslan AWS)
