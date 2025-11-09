@@ -1,5 +1,8 @@
 # 🚀 Ruslan AWS — Multi-Tier Infrastructure Demo
 
+🌐 **Live Demo:** [https://app.multi-tier.space](https://app.multi-tier.space)  
+An on-demand, cost-optimized environment that automatically wakes, deploys, and sleeps — powered by **AWS + Terraform + GitHub Actions**.
+
 This repository demonstrates a **fully automated, cost-efficient AWS multi-tier environment**, provisioned via **Terraform** and managed through **GitHub Actions**. It integrates a wake/sleep Lambda flow, secure secret storage, and on-demand infrastructure lifecycle.
 
 ---
@@ -18,7 +21,7 @@ flowchart TD
     TF --> EC2["EC2 (K3s Node)"]
     TF --> DB["RDS MySQL"]
     TF --> ALB["Application Load Balancer"]
-    EC2 --> APP["Demo App"]
+    EC2 --> APP["Notes App"]
   end
 
   subgraph AUTO["Automation & Cost Control"]
@@ -69,11 +72,55 @@ The environment sleeps when idle and wakes only when requested.
 
 ---
 
+## 📝 Application Layer — Notes App
+
+This demo infrastructure hosts a lightweight **Notes App** built with a Node.js backend and a Bootstrap frontend.  
+It demonstrates how a full stack application can be deployed, managed, and automatically destroyed on demand.
+
+**Features:**
+- Add, list, and delete notes through a simple REST API.  
+- Backend served on **K3s EC2 Node** (NodePort `30080`).  
+- Frontend hosted on **S3 + CloudFront** (`https://app.multi-tier.space`).  
+- Data persisted in **Amazon RDS (MySQL)**.  
+- API endpoints exposed via **Ingress / ALB** with health checks.
+
+**App structure:**
+```
+aws-multi-tier-infra/
+├── app/                     # Notes application code
+│   ├── server.js            # Express.js backend (REST API)
+│   ├── package.json         # Node.js dependencies
+│   ├── public/
+│   │   ├── index.html       # Bootstrap-based UI
+│   │   ├── script.js        # Fetch API to call backend
+│   │   └── style.css
+│   └── Dockerfile           # Container definition
+├── infra/                   # Terraform IaC
+│   ├── main.tf              # Core resources
+│   ├── variables.tf         # Configuration inputs
+│   ├── outputs.tf           # Outputs (URLs, IDs, etc.)
+│   ├── backend.tf           # Remote state (S3 + DynamoDB)
+│   ├── control-plane/       # Lambda packaging and schedules
+│   └── .terraform.lock.hcl  # Provider lock file
+├── .github/workflows/       # GitHub Actions automation
+│   ├── infra.yml            # Deploy/destroy workflow
+│   └── app.yml              # Optional app redeploy workflow
+└── docs/                    # Diagrams and screenshots
+```
+
+The **Notes App** serves as a realistic, minimal workload for demonstrating:
+- Continuous delivery from GitHub → AWS.  
+- Secure parameter storage (DB credentials in SSM).  
+- Full wake → apply → idle → destroy cycle.  
+- Zero-cost idle state and reproducible environment creation.
+
+---
+
 ## 💡 Cost Optimization Principles
 
 - Auto-destroy idle infrastructure via Idle-Reaper Lambda.
 - Stateless backend (S3 + DynamoDB) allows fast re-provisioning.
-- Uses minimal EC2 (t4g.small) and RDS (free-tier) to stay within credits.
+- Uses minimal EC2 (t3.small) and RDS to stay within credits.
 - Static website hosted on S3 + CloudFront (no compute cost).
 - GitHub OIDC replaces long-lived IAM keys.
 
@@ -150,4 +197,4 @@ This project demonstrates **end-to-end automation**: from a user clicking **Wake
 It combines **AWS-native services**, **Terraform**, and **GitHub Actions** into a cost-effective, production-style DevOps showcase.
 
 > _Built with precision and simplicity — from DevOps to design._  
-**© Ruslan Dashkin (Ruslan AWS)**
+> **© Ruslan Dashkin (Ruslan AWS)**
