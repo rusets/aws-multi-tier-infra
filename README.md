@@ -1,5 +1,9 @@
 # 🚀 Ruslan AWS — Multi-Tier Infrastructure Demo
 
+![Terraform](https://img.shields.io/badge/IaC-Terraform-blueviolet) 
+![AWS](https://img.shields.io/badge/Cloud-AWS-orange) 
+![CI/CD](https://img.shields.io/badge/CI%2FCD-GitHub%20Actions-lightgrey)
+
 🌐 **Live Demo:** [https://app.multi-tier.space](https://app.multi-tier.space)  
 An on-demand, cost-optimized environment that automatically wakes, deploys, and sleeps — powered by **AWS + Terraform + GitHub Actions**.
 
@@ -22,6 +26,7 @@ flowchart TD
     TF --> DB["RDS MySQL (Private Subnet)"]
     TF --> ALB["Application Load Balancer"]
     EC2 --> APP["Notes App"]
+    ALB --> APP
   end
 
   subgraph AUTO["Automation & Cost Control"]
@@ -45,7 +50,8 @@ flowchart TD
 |----------|----------|
 | **Lambda** | Wake, Status, Heartbeat, Idle-Reaper automation |
 | **API Gateway (HTTP)** | Public endpoint for wake/status triggers |
-| **EC2 (Amazon Linux 2023)** | Application host for backend service |
+| **EC2 (Amazon Linux 2023)** | Runs backend app and connects to ALB |
+| **Application Load Balancer (ALB)** | Routes requests, performs health checks, and manages scaling |
 | **RDS (MySQL, Private Subnet)** | Secure database isolated from public access |
 | **S3 + CloudFront** | Static wait-site hosting (https://app.multi-tier.space) |
 | **SSM Parameter Store** | Secure config & secret storage |
@@ -80,8 +86,8 @@ It demonstrates how a full stack application can be deployed, managed, and autom
 **Features:**
 - Add, list, and delete notes through a simple REST API.  
 - Frontend hosted on **S3 + CloudFront** (`https://app.multi-tier.space`).  
-- Data persisted in **Amazon RDS (MySQL)**, located **in a private subnet** for enhanced security.  
-- API endpoints exposed via **Application Load Balancer** with health checks.
+- Requests routed through **Application Load Balancer (ALB)** with health checks.  
+- Data persisted in **Amazon RDS (MySQL)** located **in a private subnet** for enhanced security.  
 
 **Project structure:**
 ```
@@ -126,14 +132,28 @@ The **Notes App** serves as a realistic, minimal workload for demonstrating:
 
 ---
 
+## 🔧 Environment Variables / Parameters
+
+| Name | Location | Description |
+|------|-----------|--------------|
+| `/multi-tier-demo/github_token` | **SSM Parameter Store** | Secure GitHub PAT used by Idle Reaper |
+| `/multi-tier-demo/last_wake` | **SSM Parameter Store** | Timestamp of last heartbeat signal |
+| `/multi-tier-demo/destroy_dispatched_epoch` | **SSM Parameter Store** | Guard to prevent repeated destroys |
+| `IDLE_MINUTES` | **Lambda Env (idle_reaper)** | Threshold before triggering destroy |
+| `GH_WORKFLOW` | **Lambda Env** | Target GitHub Actions workflow name |
+| `ASG_NAME` | **Lambda Env** | (Optional) AutoScaling group name |
+| `REGION` | **Lambda Env** | AWS region used for API calls |
+
+---
+
 ## 💡 Cost Optimization Principles
 
-- Auto-destroy idle infrastructure via Idle-Reaper Lambda.
-- Stateless backend (S3 + DynamoDB) allows fast re-provisioning.
-- Uses minimal EC2 (t3.small) and RDS (free-tier) to stay within credits.
-- Database is deployed in **private subnets** with no public exposure.  
-- Static website hosted on S3 + CloudFront (no compute cost).
-- GitHub OIDC replaces long-lived IAM keys.
+- Auto-destroy idle infrastructure via Idle-Reaper Lambda.  
+- Stateless backend (S3 + DynamoDB) allows fast re-provisioning.  
+- Uses minimal EC2 (t3.small) and RDS (free-tier) to stay within credits.  
+- Database deployed in **private subnets** with no public exposure.  
+- ALB health checks drive stability and cost-efficient uptime.  
+- GitHub OIDC replaces long-lived IAM keys.  
 
 Estimated runtime cost: **<$1/day** when active; **~$0 when sleeping.**
 
