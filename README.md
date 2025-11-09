@@ -8,30 +8,30 @@ This repository demonstrates a **fully automated, cost-efficient AWS multi-tier 
 
 ```mermaid
 flowchart TD
-  U[Visitor / Client] --> GW[API Gateway (HTTP)]
-  GW --> W[Lambda: wake_instance]
-  GW --> S[Lambda: status]
-  W --> GH[GitHub Actions (infra.yml)]
-  GH --> TF[Terraform Apply / Destroy]
+  U["Visitor / Client"] --> GW["API Gateway"]
+  GW --> W["Lambda: wake"]
+  GW --> S["Lambda: status"]
+  W  --> GH["GitHub Actions (infra.yml)"]
+  GH --> TF["Terraform apply/destroy"]
 
   subgraph AWS["AWS Infrastructure"]
-    TF --> EC2[EC2 (K3s Node)]
-    TF --> DB[(RDS MySQL)]
-    TF --> ALB[Application Load Balancer]
-    EC2 --> APP[Demo App / NodePort 30080]
+    TF --> EC2["EC2 (K3s Node)"]
+    TF --> DB["RDS MySQL"]
+    TF --> ALB["Application Load Balancer"]
+    EC2 --> APP["Demo App"]
   end
 
   subgraph AUTO["Automation & Cost Control"]
-    HB[Lambda: Heartbeat every 1 min]
-    IR[Lambda: Idle Reaper every 1 min]
-    HB --> SSM[(SSM Parameter Store)]
+    HB["Lambda: Heartbeat (1m)"]
+    IR["Lambda: Idle Reaper (1m)"]
+    HB --> SSM["SSM Parameter Store"]
     IR --> SSM
     IR --> GH
   end
 
-  TF --> S3[(S3 State Backend)]
-  TF --> DDB[(DynamoDB Lock Table)]
-  S3 --> CF[CloudFront + Static Wait Site]
+  TF --> S3["S3 State Backend"]
+  TF --> DDB["DynamoDB Lock Table"]
+  S3 --> CF["CloudFront (Wait Site)"]
 ```
 
 ---
@@ -150,4 +150,4 @@ This project demonstrates **end-to-end automation**: from a user clicking **Wake
 It combines **AWS-native services**, **Terraform**, and **GitHub Actions** into a cost-effective, production-style DevOps showcase.
 
 > _Built with precision and simplicity — from DevOps to design._  
-> **© Ruslan Dashkin (Ruslan AWS)**
+**© Ruslan Dashkin (Ruslan AWS)**
