@@ -1,7 +1,7 @@
 # 🚀 Ruslan AWS — Multi-Tier Infrastructure Demo
 
-![Terraform](https://img.shields.io/badge/IaC-Terraform-blueviolet) 
-![AWS](https://img.shields.io/badge/Cloud-AWS-orange) 
+![Terraform](https://img.shields.io/badge/IaC-Terraform-blueviolet)
+![AWS](https://img.shields.io/badge/Cloud-AWS-orange)
 ![CI/CD](https://img.shields.io/badge/CI%2FCD-GitHub%20Actions-lightgrey)
 
 🌐 **Live Demo:** [https://app.multi-tier.space](https://app.multi-tier.space)  
@@ -54,6 +54,7 @@ flowchart TD
 | **Application Load Balancer (ALB)** | Routes requests, performs health checks, and manages scaling |
 | **RDS (MySQL, Private Subnet)** | Secure database isolated from public access |
 | **S3 + CloudFront** | Static wait-site hosting (https://app.multi-tier.space) |
+| **Route 53** | DNS management for `multi-tier.space` and `app.multi-tier.space` |
 | **SSM Parameter Store** | Secure config & secret storage |
 | **DynamoDB** | Terraform state locking table |
 | **IAM Roles & OIDC** | Secure GitHub Actions integration |
@@ -88,6 +89,22 @@ It demonstrates how a full stack application can be deployed, managed, and autom
 - Frontend hosted on **S3 + CloudFront** (`https://app.multi-tier.space`).  
 - Requests routed through **Application Load Balancer (ALB)** with health checks.  
 - Data persisted in **Amazon RDS (MySQL)** located **in a private subnet** for enhanced security.  
+
+---
+
+### 🕒 Wait Page & Frontend Flow
+
+The static **wait page** (hosted on [https://app.multi-tier.space](https://app.multi-tier.space)) acts as a **control dashboard** for managing infrastructure state.
+
+When the system is idle, it remains online as a lightweight S3 + CloudFront site and provides:
+- A **“Wake up”** button that triggers the GitHub Actions pipeline via API Gateway → Lambda → Terraform apply.  
+- A **live progress bar** and **countdown timer** (≈12–15 minutes) indicating provisioning status.  
+- A **status indicator** that enables the **“Open App”** button once the backend environment is fully deployed.  
+
+Both `app.multi-tier.space` and `multi-tier.space` domains are managed via **Route 53** and integrated with CloudFront distributions.  
+This design ensures **zero-cost idle time** — compute resources (EC2, RDS, ALB) are active only while the app is awake, while the static wait-site remains accessible 24/7.
+
+---
 
 **Project structure:**
 ```
@@ -153,6 +170,7 @@ The **Notes App** serves as a realistic, minimal workload for demonstrating:
 - Uses minimal EC2 (t3.small) and RDS (free-tier) to stay within credits.  
 - Database deployed in **private subnets** with no public exposure.  
 - ALB health checks drive stability and cost-efficient uptime.  
+- DNS hosted in **Route 53** and integrated with CloudFront.  
 - GitHub OIDC replaces long-lived IAM keys.  
 
 Estimated runtime cost: **<$1/day** when active; **~$0 when sleeping.**
