@@ -4,10 +4,10 @@
 ![AWS](https://img.shields.io/badge/Cloud-AWS-orange)
 ![CI/CD](https://img.shields.io/badge/CI%2FCD-GitHub%20Actions-lightgrey)
 
-🌐 **Live Demo:** [https://app.multi-tier.space](https://app.multi-tier.space)  
+🌐 **Live Demo:** [https://app.multi-tier.space](https://app.multi-tier.space) → redirects to [https://multi-tier.space](https://multi-tier.space)  
 An on-demand, cost-optimized environment that automatically wakes, deploys, and sleeps — powered by **AWS + Terraform + GitHub Actions**.
 
-This repository demonstrates a **fully automated, cost-efficient AWS multi-tier environment**, provisioned via **Terraform** and managed through **GitHub Actions**. It integrates a wake/sleep Lambda flow, secure secret storage, and on-demand infrastructure lifecycle.
+After provisioning completes, the main application becomes accessible at **[https://multi-tier.space](https://multi-tier.space)**, hosted behind an **Application Load Balancer** connected to the K3s EC2 backend.
 
 ---
 
@@ -89,6 +89,7 @@ It demonstrates how a full stack application can be deployed, managed, and autom
 - Frontend hosted on **S3 + CloudFront** (`https://app.multi-tier.space`).  
 - Requests routed through **Application Load Balancer (ALB)** with health checks.  
 - Data persisted in **Amazon RDS (MySQL)** located **in a private subnet** for enhanced security.  
+- After successful provisioning, the live application becomes available at **[https://multi-tier.space](https://multi-tier.space)**.
 
 ---
 
@@ -101,146 +102,10 @@ When the system is idle, it remains online as a lightweight S3 + CloudFront site
 - A **live progress bar** and **countdown timer** (≈12–15 minutes) indicating provisioning status.  
 - A **status indicator** that enables the **“Open App”** button once the backend environment is fully deployed.  
 
+Once provisioning is complete, users are automatically guided from the wait page (`app.multi-tier.space`) to the running application at **https://multi-tier.space**, served through the ALB connected to the K3s EC2 backend.
+
 Both `app.multi-tier.space` and `multi-tier.space` domains are managed via **Route 53** and integrated with CloudFront distributions.  
 This design ensures **zero-cost idle time** — compute resources (EC2, RDS, ALB) are active only while the app is awake, while the static wait-site remains accessible 24/7.
-
----
-
-**Project structure:**
-```
-aws-multi-tier-infra/
-├── app
-│   ├── package.json
-│   ├── public
-│   └── server.js
-├── bootstrap
-│   └── user_data.sh
-├── build
-├── docs
-├── infra
-│   ├── .terraform.lock.hcl
-│   ├── alb_domain.tf
-│   ├── artifacts.tf
-│   ├── backend.tf
-│   ├── control-plane/
-│   │   ├── .terraform.lock.hcl
-│   │   ├── api.tf
-│   │   ├── backend.tf
-│   │   ├── dist/
-│   │   ├── idle.tf
-│   │   ├── lambdas.tf
-│   │   ├── outputs.tf
-│   │   ├── terraform.tfvars.example
-│   │   ├── variables.tf
-│   │   └── versions.tf
-│   ├── locals.paths.tf
-│   ├── main.tf
-│   ├── outputs.tf
-│   ├── providers.tf
-│   ├── ssm.tf
-│   └── variables.tf
-├── lambda
-│   ├── heartbeat
-│   ├── idle_reaper
-│   ├── status
-│   └── wake
-├── README.md
-├── scripts
-│   └── rdapp.service
-└── wait-site
-    └── index.html
-```
-
----
-
-## 🔧 Environment Variables / Parameters
-
-| Name | Location | Description |
-|------|-----------|--------------|
-| `/multi-tier-demo/github_token` | **SSM Parameter Store** | Secure GitHub PAT used by Idle Reaper |
-| `/multi-tier-demo/last_wake` | **SSM Parameter Store** | Timestamp of last heartbeat signal |
-| `/multi-tier-demo/destroy_dispatched_epoch` | **SSM Parameter Store** | Guard to prevent repeated destroys |
-| `IDLE_MINUTES` | **Lambda Env (idle_reaper)** | Threshold before triggering destroy |
-| `GH_WORKFLOW` | **Lambda Env** | Target GitHub Actions workflow name |
-| `ASG_NAME` | **Lambda Env** | (Optional) AutoScaling group name |
-| `REGION` | **Lambda Env** | AWS region used for API calls |
-
----
-
-## 💡 Cost Optimization Principles
-
-- Auto-destroy idle infrastructure via Idle-Reaper Lambda.  
-- Stateless backend (S3 + DynamoDB) allows fast re-provisioning.  
-- Uses minimal EC2 (t3.small) and RDS (free-tier) to stay within credits.  
-- Database deployed in **private subnets** with no public exposure.  
-- ALB health checks drive stability and cost-efficient uptime.  
-- DNS hosted in **Route 53** and integrated with CloudFront.  
-- GitHub OIDC replaces long-lived IAM keys.  
-
-Estimated runtime cost: **<$1/day** when active; **~$0 when sleeping.**
-
----
-
-## 🧰 Common Terraform & AWS CLI Commands
-
-### Terraform Lifecycle
-
-```bash
-terraform init
-terraform plan -out=tfplan
-terraform apply -auto-approve tfplan
-terraform destroy -auto-approve
-```
-
-### AWS CLI Checks
-
-```bash
-aws ssm get-parameter --name /multi-tier-demo/last_wake --query 'Parameter.Value' --output text
-aws logs tail /aws/lambda/multi-tier-demo-idle-reaper --follow
-aws events list-rules --name-prefix multi-tier-demo
-aws lambda get-function-configuration --function-name multi-tier-demo-idle-reaper --query 'Environment.Variables.IDLE_MINUTES' --output text
-```
-
----
-
-## 🔐 Secrets Management
-
-All secrets (GitHub token, DB credentials, API keys) are stored in **AWS SSM Parameter Store** as **SecureString**.  
-Terraform and Lambdas read them dynamically — no plaintext secrets in `.tfvars` or source code.
-
----
-
-## 🚀 GitHub Actions Automation
-
-- Workflow: `.github/workflows/infra.yml`
-- Triggers: `workflow_dispatch`, `repository_dispatch`, or wake via Lambda
-- Uses **OIDC federated role** for short-lived AWS credentials
-- Built-in **kill switch**: variable `INFRA_ARMED` must be `on` for automation
-- Concurrency control ensures one infra job at a time
-
----
-
-## 💵 Budget & Credits
-
-Optimized for **AWS Free Tier / Student Credits**:
-
-- Minimal EC2 runtime (<20 min active window)
-- RDS stopped outside wake period
-- S3/CloudFront static content billed in pennies
-- DynamoDB lock table PAY_PER_REQUEST
-- GitHub Actions used only when invoked by API
-
----
-
-## 🧠 Quick Reference
-
-| Command | Purpose |
-|----------|----------|
-| `gh workflow run infra.yml -f action=apply -f auto_approve=true` | Manually start environment |
-| `gh variable set INFRA_ARMED -R rusets/aws-multi-tier-infra -b on` | Enable automated destroy/apply |
-| `aws ssm delete-parameter --name /multi-tier-demo/destroy_dispatched_epoch` | Reset cooldown guard |
-| `aws lambda invoke --function-name multi-tier-demo-idle-reaper --payload '{}' /dev/stdout` | Manual reaper test |
-| `aws cloudfront create-invalidation --distribution-id EVOB3TLZSKCR0 --paths /index.html` | Force refresh static site |
 
 ---
 
