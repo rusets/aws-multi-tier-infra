@@ -262,4 +262,4 @@ Optimized for **AWS Free Tier / Student Credits**:
 ## 🧾 License
 
 Released under the **MIT License** — feel free to use, fork, and learn from it.  
-© Ruslan Dashkin (Ruslan AWS)
+© Ruslan Dashkin (🚀Ruslan AWS)
