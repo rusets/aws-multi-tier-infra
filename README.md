@@ -226,6 +226,14 @@ Terraform and Lambdas read them dynamically — no plaintext secrets in `.tfvars
 
 ---
 
+### 🧹 Workflow Hygiene & Security
+
+- **Automated log cleanup** — completed GitHub Actions runs are automatically purged by a dedicated `cleanup-logs` workflow, keeping the repository lean and free from obsolete logs.  
+- **Sensitive data masking** — all AWS account IDs, domain names, and API endpoints are masked in workflow output for safe, production-grade logging.  
+- **Minimal retention policy** — workflow artifacts and build logs are removed after completion to reduce surface exposure and unnecessary storage costs.
+
+---
+
 ## 🚀 GitHub Actions Automation
 
 - Workflow: `.github/workflows/infra.yml`  
