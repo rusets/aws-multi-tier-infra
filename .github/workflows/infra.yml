@@ -126,17 +126,31 @@ jobs:
           aws ssm put-parameter --region ${{ env.AWS_REGION }} --name /multi-tier-demo/reaper_armed --type String --overwrite --value off
           aws ssm delete-parameter --region ${{ env.AWS_REGION }} --name /multi-tier-demo/destroy_dispatched_epoch || true
 
-      - name: Self-clean workflow logs
-        if: ${{ success() }}
+      - name: Scrub logs & remove run (best-effort)
+        if: always()
         env:
-          GH_TOKEN: ${{ secrets.GH_PAT_CLEANUP }}
+          GH_PAT: ${{ secrets.GH_PAT_CLEANUP }}
           RUN_ID: ${{ github.run_id }}
+          REPO: ${{ github.repository }}
         run: |
-          echo "Deleting workflow run $RUN_ID ..."
-          curl -sS -X DELETE \
-            -H "Authorization: Bearer ${GH_TOKEN}" \
+          set -euo pipefail
+          echo "Run: ${RUN_ID} Repo: ${REPO}"
+
+          LOGS_CODE=$(curl -sS -o /dev/null -w "%{http_code}" -X DELETE \
+            -H "Authorization: Bearer ${GH_PAT}" \
             -H "Accept: application/vnd.github+json" \
-            "https://api.github.com/repos/${{ github.repository }}/actions/runs/${RUN_ID}"
+            -H "User-Agent: cleanup-bot" \
+            "https://api.github.com/repos/${REPO}/actions/runs/${RUN_ID}/logs")
+          echo "DELETE /logs → HTTP ${LOGS_CODE}"
+
+          RUN_CODE=$(curl -sS -o /dev/null -w "%{http_code}" -X DELETE \
+            -H "Authorization: Bearer ${GH_PAT}" \
+            -H "Accept: application/vnd.github+json" \
+            -H "User-Agent: cleanup-bot" \
+            "https://api.github.com/repos/${REPO}/actions/runs/${RUN_ID}")
+          echo "DELETE /run  → HTTP ${RUN_CODE}"
+
+          exit 0
 
   deploy_app:
     needs: terraform
