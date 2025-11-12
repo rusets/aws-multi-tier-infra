@@ -1,0 +1,42 @@
+name: cleanup-logs
+
+on:
+  workflow_run:
+    workflows: ["infra", "app"]
+    types: [completed]
+
+permissions:
+  contents: read
+
+jobs:
+  cleanup:
+    runs-on: ubuntu-latest
+    if: ${{ github.event.workflow_run.conclusion != '' }}
+
+    steps:
+      - name: Scrub logs of the completed run
+        env:
+          GH_PAT: ${{ secrets.GH_PAT_CLEANUP }}
+          REPO: ${{ github.repository }}
+          TARGET_RUN_ID: ${{ github.event.workflow_run.id }}
+        run: |
+          set -euo pipefail
+          echo "Target run: ${TARGET_RUN_ID} Repo: ${REPO}"
+
+          LOGS_CODE=$(curl -sS -o /dev/null -w "%{http_code}" -X DELETE \
+            -H "Authorization: token ${GH_PAT}" \
+            -H "Accept: application/vnd.github+json" \
+            -H "User-Agent: cleanup-bot" \
+            -H "X-GitHub-Api-Version: 2022-11-28" \
+            "https://api.github.com/repos/${REPO}/actions/runs/${TARGET_RUN_ID}/logs")
+          echo "DELETE /logs → HTTP ${LOGS_CODE}"
+
+          RUN_CODE=$(curl -sS -o /dev/null -w "%{http_code}" -X DELETE \
+            -H "Authorization: token ${GH_PAT}" \
+            -H "Accept: application/vnd.github+json" \
+            -H "User-Agent: cleanup-bot" \
+            -H "X-GitHub-Api-Version: 2022-11-28" \
+            "https://api.github.com/repos/${REPO}/actions/runs/${TARGET_RUN_ID}")
+          echo "DELETE /run  → HTTP ${RUN_CODE}"
+
+          exit 0
