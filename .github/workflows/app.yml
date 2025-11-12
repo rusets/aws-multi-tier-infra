@@ -33,6 +33,23 @@ jobs:
       - name: Checkout
         uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8
 
+      - name: Mask sensitive strings
+        run: |
+          set -euo pipefail
+          ROLE_ARN="${{ secrets.APP_ROLE_ARN }}"
+          ACC="$(printf '%s' "$ROLE_ARN" | sed -n 's#^arn:aws:iam::\([0-9]\+\):.*#\1#p')"
+          mask(){ s="${1:-}"; [ -n "$s" ] && echo "::add-mask::$s"; }
+          mask "$ACC"
+          mask "${GITHUB_REPOSITORY}"
+          mask "${GITHUB_REPOSITORY%/*}"
+          mask "${GITHUB_REPOSITORY#*/}"
+          mask "multi-tier-demo-wait-site"
+          mask "EVOB3TLZSKCR0"
+          mask "e40una40of.execute-api.us-east-1.amazonaws.com"
+          mask "https://e40una40of.execute-api.us-east-1.amazonaws.com/prod"
+          mask "app.multi-tier.space"
+          mask "multi-tier.space"
+
       - name: Configure AWS credentials (OIDC)
         uses: aws-actions/configure-aws-credentials@00943011d9042930efac3dcd3a170e4273319bc8
         with:
@@ -43,16 +60,13 @@ jobs:
         id: pack
         run: |
           set -euo pipefail
-
           if [ -f app/package.json ]; then
             pushd app >/dev/null
-
             if [ -f package-lock.json ] || [ -f npm-shrinkwrap.json ]; then
               npm ci --omit=dev
             else
               npm install --omit=dev
             fi
-
             npm run build || true
             zip -r ../app-build.zip . -x "node_modules/**" ".cache/**"
             popd >/dev/null
@@ -64,7 +78,6 @@ jobs:
               exit 1
             fi
           fi
-
           if command -v md5sum >/dev/null 2>&1; then
             MD5=$(md5sum app-build.zip | awk '{print $1}')
           else
@@ -74,7 +87,7 @@ jobs:
           NAME="app-${SHORT}.zip"
           mv -f app-build.zip "$NAME"
           echo "name=$NAME" >> $GITHUB_OUTPUT
-          echo "md5=$MD5"   >> $GITHUB_OUTPUT
+          echo "md5=$MD5" >> $GITHUB_OUTPUT
 
       - name: Detect artifact change by MD5
         id: diff
@@ -88,7 +101,7 @@ jobs:
             echo "changed=true" >> $GITHUB_OUTPUT
           fi
           echo "current_md5=$CURRENT" >> $GITHUB_OUTPUT
-          echo "new_md5=$NEW"         >> $GITHUB_OUTPUT
+          echo "new_md5=$NEW" >> $GITHUB_OUTPUT
 
       - name: Get assets bucket from SSM (only if changed)
         if: steps.diff.outputs.changed == 'true'
@@ -97,6 +110,10 @@ jobs:
           set -euo pipefail
           BUCKET=$(aws ssm get-parameter --name "${PARAM_PATH}/assets_bucket" --query 'Parameter.Value' --output text)
           echo "bucket=$BUCKET" >> $GITHUB_OUTPUT
+
+      - name: Mask SSM-resolved bucket
+        if: steps.diff.outputs.changed == 'true'
+        run: echo "::add-mask::${{ steps.ssm.outputs.bucket }}"
 
       - name: Upload artifact to S3 (only if changed)
         if: steps.diff.outputs.changed == 'true'
@@ -108,7 +125,7 @@ jobs:
         if: steps.diff.outputs.changed == 'true'
         run: |
           set -euo pipefail
-          aws ssm put-parameter --name "${PARAM_PATH}/app/artifact_key"     --type String --overwrite --value "artifacts/${{ steps.pack.outputs.name }}"
-          aws ssm put-parameter --name "${PARAM_PATH}/app/artifact_md5"     --type String --overwrite --value "${{ steps.pack.outputs.md5 }}"
-          aws ssm put-parameter --name "${PARAM_PATH}/app/last_deploy_sha"  --type String --overwrite --value "${GITHUB_SHA}"
+          aws ssm put-parameter --name "${PARAM_PATH}/app/artifact_key" --type String --overwrite --value "artifacts/${{ steps.pack.outputs.name }}"
+          aws ssm put-parameter --name "${PARAM_PATH}/app/artifact_md5" --type String --overwrite --value "${{ steps.pack.outputs.md5 }}"
+          aws ssm put-parameter --name "${PARAM_PATH}/app/last_deploy_sha" --type String --overwrite --value "${GITHUB_SHA}"
           aws ssm put-parameter --name "${PARAM_PATH}/app/last_deploy_time" --type String --overwrite --value "$(date -u +'%Y-%m-%dT%H:%M:%SZ')"
