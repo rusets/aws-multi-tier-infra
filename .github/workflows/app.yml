@@ -112,31 +112,3 @@ jobs:
           aws ssm put-parameter --name "${PARAM_PATH}/app/artifact_md5"     --type String --overwrite --value "${{ steps.pack.outputs.md5 }}"
           aws ssm put-parameter --name "${PARAM_PATH}/app/last_deploy_sha"  --type String --overwrite --value "${GITHUB_SHA}"
           aws ssm put-parameter --name "${PARAM_PATH}/app/last_deploy_time" --type String --overwrite --value "$(date -u +'%Y-%m-%dT%H:%M:%SZ')"
-
-      - name: Scrub logs & remove run (best-effort)
-        if: always()
-        env:
-          GH_PAT: ${{ secrets.GH_PAT_CLEANUP }}
-          RUN_ID: ${{ github.run_id }}
-          REPO: ${{ github.repository }}
-        run: |
-          set -euo pipefail
-          echo "Run: ${RUN_ID} Repo: ${REPO}"
-
-          LOGS_CODE=$(curl -sS -o /dev/null -w "%{http_code}" -X DELETE \
-            -H "Authorization: token ${GH_PAT}" \
-            -H "Accept: application/vnd.github+json" \
-            -H "User-Agent: cleanup-bot" \
-            -H "X-GitHub-Api-Version: 2022-11-28" \
-            "https://api.github.com/repos/${REPO}/actions/runs/${RUN_ID}/logs")
-          echo "DELETE /logs → HTTP ${LOGS_CODE}"
-
-          RUN_CODE=$(curl -sS -o /dev/null -w "%{http_code}" -X DELETE \
-            -H "Authorization: token ${GH_PAT}" \
-            -H "Accept: application/vnd.github+json" \
-            -H "User-Agent: cleanup-bot" \
-            -H "X-GitHub-Api-Version: 2022-11-28" \
-            "https://api.github.com/repos/${REPO}/actions/runs/${RUN_ID}")
-          echo "DELETE /run  → HTTP ${RUN_CODE}"
-
-          exit 0
