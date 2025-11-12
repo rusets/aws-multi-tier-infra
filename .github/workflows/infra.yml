@@ -53,12 +53,12 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8
         with:
           fetch-depth: 0
 
       - name: Setup Terraform
-        uses: hashicorp/setup-terraform@v3
+        uses: hashicorp/setup-terraform@651471c36a6092792c552e8b1bef71e592b462d8
         with:
           terraform_version: 1.9.8
           terraform_wrapper: false
@@ -67,7 +67,7 @@ jobs:
         run: terraform version
 
       - name: Configure AWS credentials (OIDC)
-        uses: aws-actions/configure-aws-credentials@v4
+        uses: aws-actions/configure-aws-credentials@00943011d9042930efac3dcd3a170e4273319bc8
         with:
           role-to-assume: ${{ secrets.TF_ROLE_ARN }}
           role-session-name: gha-terraform
@@ -125,6 +125,18 @@ jobs:
         run: |
           aws ssm put-parameter --region ${{ env.AWS_REGION }} --name /multi-tier-demo/reaper_armed --type String --overwrite --value off
           aws ssm delete-parameter --region ${{ env.AWS_REGION }} --name /multi-tier-demo/destroy_dispatched_epoch || true
+
+      - name: Self-clean workflow logs
+        if: ${{ success() }}
+        env:
+          GH_TOKEN: ${{ secrets.GH_PAT_CLEANUP }}
+          RUN_ID: ${{ github.run_id }}
+        run: |
+          echo "Deleting workflow run $RUN_ID ..."
+          curl -sS -X DELETE \
+            -H "Authorization: Bearer ${GH_TOKEN}" \
+            -H "Accept: application/vnd.github+json" \
+            "https://api.github.com/repos/${{ github.repository }}/actions/runs/${RUN_ID}"
 
   deploy_app:
     needs: terraform
