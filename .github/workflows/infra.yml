@@ -57,6 +57,23 @@ jobs:
         with:
           fetch-depth: 0
 
+      - name: Mask sensitive strings
+        run: |
+          set -euo pipefail
+          ROLE_ARN="${{ secrets.TF_ROLE_ARN }}"
+          ACC="$(printf '%s' "$ROLE_ARN" | sed -n 's#^arn:aws:iam::\([0-9]\+\):.*#\1#p')"
+          mask(){ s="${1:-}"; [ -n "$s" ] && echo "::add-mask::$s"; }
+          mask "$ACC"
+          mask "${GITHUB_REPOSITORY}"
+          mask "${GITHUB_REPOSITORY%/*}"
+          mask "${GITHUB_REPOSITORY#*/}"
+          mask "multi-tier-demo-wait-site"
+          mask "EVOB3TLZSKCR0"
+          mask "e40una40of.execute-api.us-east-1.amazonaws.com"
+          mask "https://e40una40of.execute-api.us-east-1.amazonaws.com/prod"
+          mask "app.multi-tier.space"
+          mask "multi-tier.space"
+
       - name: Setup Terraform
         uses: hashicorp/setup-terraform@651471c36a6092792c552e8b1bef71e592b462d8
         with:
