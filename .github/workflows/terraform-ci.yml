@@ -19,22 +19,25 @@ env:
 jobs:
   terraform-ci:
     runs-on: ubuntu-latest
+
     defaults:
       run:
         working-directory: infra
 
     steps:
       - name: Checkout
-        uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8
+        uses: actions/checkout@v4
 
       - name: Setup Terraform
-        uses: hashicorp/setup-terraform@651471c36a6092792c552e8b1bef71e592b462d8
+        uses: hashicorp/setup-terraform@v3
         with:
-          terraform_version: 1.9.8
+          terraform_version: "1.9.8"
           terraform_wrapper: false
 
-      - name: Setup tflint
-        uses: terraform-linters/setup-tflint@4cb9feea73331a35b422df102992a03a44a3bb33
+      - name: Setup TFLint
+        uses: terraform-linters/setup-tflint@v4
+        with:
+          tflint_version: latest
 
       - name: Terraform fmt (check)
         run: terraform fmt -check -recursive
@@ -45,16 +48,16 @@ jobs:
       - name: Terraform validate
         run: terraform validate -no-color
 
-      - name: tflint
+      - name: TFLint
         run: tflint
 
       - name: tfsec
-        uses: aquasecurity/tfsec-action@v1
+        uses: aquasecurity/tfsec-action@v1.0.3
         with:
           working_directory: infra
 
-      - name: checkov
-        uses: bridgecrewio/checkov-action@99bb2caf247dfd9f03cf984373bc6043d4e32ebf
+      - name: Checkov
+        uses: bridgecrewio/checkov-action@v12
         with:
           directory: infra
           framework: terraform
