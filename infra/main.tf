@@ -122,30 +122,6 @@ resource "aws_lb_listener" "http" {
   }
 }
 
-############################################
-# AMI — Amazon Linux 2023 (x86_64, HVM, EBS)
-############################################
-data "aws_ami" "al2023" {
-  most_recent = true
-  owners      = ["137112412989"]
-
-  filter {
-    name   = "name"
-    values = ["al2023-ami-20*-x86_64"]
-  }
-  filter {
-    name   = "architecture"
-    values = ["x86_64"]
-  }
-  filter {
-    name   = "virtualization-type"
-    values = ["hvm"]
-  }
-  filter {
-    name   = "root-device-type"
-    values = ["ebs"]
-  }
-}
 
 ############################################
 # RDS — subnet group + instance (AWS-managed master secret)

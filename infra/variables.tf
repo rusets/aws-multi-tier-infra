@@ -87,20 +87,6 @@ variable "rds_username" {
 }
 
 ############################################
-# Admin Access CIDR
-############################################
-variable "admin_cidr" {
-  type        = string
-  description = "CIDR allowed to SSH into app instances; empty disables SSH"
-  default     = ""
-
-  validation {
-    condition     = var.admin_cidr == "" || can(cidrnetmask(var.admin_cidr))
-    error_message = "admin_cidr must be empty or a valid CIDR (e.g., 1.2.3.4/32)."
-  }
-}
-
-############################################
 # SSM Base Path
 ############################################
 variable "param_path" {
@@ -200,83 +186,6 @@ variable "app_artifact_key" {
     condition     = length(trimspace(var.app_artifact_key)) > 0
     error_message = "app_artifact_key must not be empty."
   }
-}
-
-############################################
-# GitHub Repository Access
-############################################
-variable "github_repo" {
-  type        = string
-  description = "GitHub repository allowed to assume OIDC roles (format: owner/repo)"
-  default     = "rusets/aws-multi-tier-infra"
-
-  validation {
-    condition     = can(regex("^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$", var.github_repo))
-    error_message = "github_repo must be in the form owner/repo (e.g., rusets/aws-multi-tier-infra)."
-  }
-}
-
-############################################
-# GitHub OIDC Provider ARN
-############################################
-variable "github_oidc_provider_arn" {
-  type        = string
-  description = "ARN of the existing GitHub OIDC provider"
-  default     = "arn:aws:iam::097635932419:oidc-provider/token.actions.githubusercontent.com"
-
-  validation {
-    condition     = can(regex("^arn:aws:iam::[0-9]{12}:oidc-provider/.+$", var.github_oidc_provider_arn))
-    error_message = "github_oidc_provider_arn must be a valid IAM OIDC provider ARN."
-  }
-}
-
-############################################
-# Database Name
-############################################
-variable "db_name" {
-  type        = string
-  description = "Logical database name used by the application"
-  default     = "notes"
-
-  validation {
-    condition     = length(trimspace(var.db_name)) > 0
-    error_message = "db_name must not be empty."
-  }
-}
-
-############################################
-# GitHub Ref Pattern
-############################################
-variable "github_ref_pattern" {
-  type        = string
-  description = "GitHub ref pattern allowed to assume OIDC roles (e.g., refs/heads/*)"
-  default     = "refs/heads/*"
-
-  validation {
-    condition     = can(regex("^refs/(heads|tags)/.+\\*?$", var.github_ref_pattern))
-    error_message = "github_ref_pattern must start with refs/heads/ or refs/tags/."
-  }
-}
-
-############################################
-# Auto Scaling Group Size
-############################################
-variable "asg_min_size" {
-  type        = number
-  description = "ASG minimum capacity for the app tier"
-  default     = 1
-}
-
-variable "asg_max_size" {
-  type        = number
-  description = "ASG maximum capacity for the app tier"
-  default     = 2
-}
-
-variable "asg_desired_capacity" {
-  type        = number
-  description = "ASG desired capacity for the app tier"
-  default     = 1
 }
 
 ############################################

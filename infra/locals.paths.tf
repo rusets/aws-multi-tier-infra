@@ -10,5 +10,4 @@ locals {
 
   app_zip_path = "${local.build_dir}/app.zip"
   user_data    = "${local.bootstrap_dir}/user_data.sh"
-  rdapp_unit   = "${local.scripts_dir}/rdapp.service"
 }
