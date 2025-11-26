@@ -49,7 +49,7 @@ jobs:
         run: tflint
 
       - name: tfsec
-        uses: aquasecurity/tfsec-action@1cecaa0e282c0a5c9637da8a5c85261c3e35c384
+        uses: aquasecurity/tfsec-action@v1
         with:
           working_directory: infra
 
