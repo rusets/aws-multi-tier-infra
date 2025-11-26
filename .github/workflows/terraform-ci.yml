@@ -8,6 +8,7 @@ on:
       - "infra/**"
       - ".github/workflows/terraform-ci.yml"
       - ".tflint.hcl"
+  workflow_dispatch:
 
 permissions:
   contents: read
