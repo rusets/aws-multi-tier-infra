@@ -1,12 +1,19 @@
 
-# 🚀 Ruslan AWS — Multi-Tier Infrastructure Demo
+#  Ruslan AWS — Multi-Tier Infrastructure Demo
 
-![Terraform](https://img.shields.io/badge/IaC-Terraform-blueviolet)
-![AWS](https://img.shields.io/badge/Cloud-AWS-orange)
-![CI/CD](https://img.shields.io/badge/CI%2FCD-GitHub%20Actions-lightgrey)
+<p align="center">
+  <img src="https://img.shields.io/badge/Terraform-IaC-blueviolet" />
+  <img src="https://img.shields.io/badge/AWS-Cloud-orange" />
+  <img src="https://img.shields.io/badge/GitHub%20Actions-CI%2FCD-lightgrey" />
+  <img src="https://img.shields.io/badge/Lambda-Serverless-yellow" />
+  <img src="https://img.shields.io/badge/API%20Gateway-Trigger-red" />
+  <img src="https://img.shields.io/badge/RDS-MySQL-blue" />
+  <img src="https://img.shields.io/badge/EC2-Compute-green" />
+  <img src="https://img.shields.io/badge/S3-Static%20Site-yellowgreen" />
+</p>
 
-🌐 **Wait Page:** [https://app.multi-tier.space](https://app.multi-tier.space)  
-🌐 **Main App:** [https://multi-tier.space](https://multi-tier.space)
+ **Wait Page:** [https://app.multi-tier.space](https://app.multi-tier.space)  
+ **Main App:** [https://multi-tier.space](https://multi-tier.space)
 
 This project demonstrates a **fully automated, cost-optimized multi-tier infrastructure on AWS**, provisioned via **Terraform** and orchestrated with **GitHub Actions**.  
 It showcases **on-demand environment wake/sleep**, **secure secret storage (SSM Parameter Store)**, and **serverless orchestration (API Gateway + Lambda)** for real-world DevOps automation.
@@ -15,7 +22,7 @@ The solution provisions a complete **three-tier architecture** — frontend, app
 
 ---
 
-## ⚙️ Architecture Overview
+##  Architecture Overview
 
 ```mermaid
 flowchart TD
@@ -48,7 +55,7 @@ flowchart TD
 
 ---
 
-## 🧩 Key AWS Services Used
+##  Key AWS Services Used
 
 | Service | Purpose |
 |---|---|
@@ -66,7 +73,7 @@ flowchart TD
 
 ---
 
-## 💤 Wake/Sleep Lifecycle
+##  Wake/Sleep Lifecycle
 
 The environment sleeps when idle and wakes only when requested.
 
@@ -76,14 +83,23 @@ The environment sleeps when idle and wakes only when requested.
 - **`multi-tier-demo-status`** — reports live status (ready / waking / idle) to frontend.
 - **`multi-tier-demo-wake`** — receives POST requests from the wait page and starts the `apply` workflow.
 
-**Default timings (current):**
-- Heartbeat: every **1 minute**
-- Idle reaper destroy threshold: **10 minutes**
-- Cooldown guard between destroys: **30 minutes**
+## Default Timings (Current Configuration)
+
+- **Heartbeat Lambda**  
+  Updates `/multi-tier-demo/last_wake` every **60 seconds**.
+
+- **Idle-Reaper Threshold**  
+  Automatically triggers `destroy` after **10 minutes** of inactivity.
+
+- **Cooldown Guard**  
+  Prevents repeated destroy calls for **30 minutes** after the last destroy event.
+
+- **Full Wake Cycle Duration**  
+  Total time for provisioning (Terraform apply + service warm-up): **12–15 minutes**.
 
 ---
 
-## 📝 Application Layer — Notes App
+##  Application Layer — Notes App
 
 This demo infrastructure hosts a lightweight **Notes App** built with a Node.js backend and a Bootstrap frontend.  
 It demonstrates how a full‑stack application can be deployed, managed, and automatically destroyed on demand.
@@ -97,7 +113,7 @@ It demonstrates how a full‑stack application can be deployed, managed, and aut
 
 ---
 
-### 🕒 Wait Page & Frontend Flow
+###  Wait Page & Frontend Flow
 
 The static **wait page** (hosted on [https://app.multi-tier.space](https://app.multi-tier.space)) acts as a **control dashboard** for managing infrastructure state.
 
@@ -111,68 +127,53 @@ This design ensures **zero‑cost idle time** — compute resources (EC2, RDS, A
 
 ---
 
-## 📸 Screenshots
-
-![wait-idle](./docs/screens/wait-idle.png)
-
-![wait-progress](./docs/screens/wait-progress.png)
-
-![app-notes](./docs/screens/app-notes.png)
-
-![rds-console](./docs/screens/rds-console.png)
-
-![lambda-heartbeat](./docs/screens/lambda-heartbeat.png)
-
-![gha-runs](./docs/screens/gha-runs.png)
-
----
-
-## 📁 Project Structure
+##  Project Structure
 
 ```
 aws-multi-tier-infra/
-├── app
-│   ├── package.json
-│   ├── public
-│   └── server.js
-├── bootstrap
-│   └── user_data.sh
-├── build
-├── docs
-├── infra
-│   ├── alb_domain.tf
-│   ├── artifacts.tf
-│   ├── backend.tf
-│   ├── control-plane/
-│   │   ├── api.tf
-│   │   ├── backend.tf
-│   │   ├── dist/
-│   │   ├── idle.tf
-│   │   ├── lambdas.tf
-│   │   ├── outputs.tf
-│   │   ├── terraform.tfvars.example
-│   │   ├── variables.tf
-│   │   └── versions.tf
-│   ├── locals.paths.tf
-│   ├── main.tf
-│   ├── outputs.tf
-│   ├── providers.tf
-│   ├── ssm.tf
-│   └── variables.tf
-├── lambda
-│   ├── heartbeat
-│   ├── idle_reaper
-│   ├── status
-│   └── wake
-├── scripts
-│   └── rdapp.service
-└── wait-site
-    └── index.html
+├── infra/              # Terraform — core application infrastructure
+├── lambda/             # Automation Lambdas (wake, status, heartbeat, idle-reaper)
+├── app/                # Node.js Notes App (backend + static assets)
+├── wait-site/          # Static "Wake" landing page (CloudFront + S3)
+├── bootstrap/          # EC2 bootstrap (user_data.sh)
+├── scripts/            # Systemd service units and helper scripts
+├── docs/               # Architecture, SLO, ADR, runbooks, diagrams, screenshots
+└── .github/            # GitHub Actions (infra, app, cleanup, Terraform CI)
 ```
+
+**Full detailed structure:** see [`docs/architecture.md`](./docs/architecture.md)
 
 ---
 
-## 🔧 Environment Variables / Parameters
+## 📘 Documentation
+
+This repository includes a complete production-style documentation set:
+
+- **Architecture** — [`docs/architecture.md`](./docs/architecture.md)
+- **Cost Model** — [`docs/cost.md`](./docs/cost.md)
+- **SLO & Performance** — [`docs/slo.md`](./docs/slo.md)
+- **Monitoring Strategy** — [`docs/monitoring.md`](./docs/monitoring.md)
+- **Threat Model** — [`docs/threat-model.md`](./docs/threat-model.md)
+
+### ADR (Architectural Decisions)
+
+- **ADR-0001: Why Terraform** — [`docs/adr/0001-why-terraform.md`](./docs/adr/0001-why-terraform.md)  
+- **ADR-0002: Why OIDC Instead of IAM Users** — [`docs/adr/0002-why-oidc-instead-of-iam-users.md`](./docs/adr/0002-why-oidc-instead-of-iam-users.md)  
+- **ADR-0003: Wake/Sleep Architecture Choice** — [`docs/adr/0003-wake-sleep-architecture-choice.md`](./docs/adr/0003-wake-sleep-architecture-choice.md)  
+- **ADR-0004: Why RDS in a Private Subnet** — [`docs/adr/0004-why-rds-private-subnet.md`](./docs/adr/0004-why-rds-private-subnet.md)
+
+### Runbooks (Operational Playbooks)
+- **Wake Failure** — [`docs/runbooks/wake-failure.md`](./docs/runbooks/wake-failure.md)
+- **Destroy Not Triggered** — [`docs/runbooks/destroy-not-triggered.md`](./docs/runbooks/destroy-not-triggered.md)
+- **Rollback Procedure** — [`docs/runbooks/rollback.md`](./docs/runbooks/rollback.md)
+
+### Diagrams
+- **Architecture Diagram (Mermaid)** — [`docs/diagrams/architecture.md`](./docs/diagrams/architecture.md)
+- **Sequence Diagram (Mermaid)** — [`docs/diagrams/sequence.md`](./docs/diagrams/sequence.md)
+
+---
+
+##  Environment Variables / Parameters
 
 | Name | Location | Description |
 |---|---|---|
@@ -186,20 +187,20 @@ aws-multi-tier-infra/
 
 ---
 
-## 💡 Cost Optimization Principles
+##  Cost Optimization Principles
 
-- Auto‑destroy idle infrastructure via Idle‑Reaper Lambda.  
-- Stateless backend (S3 + DynamoDB) allows fast re‑provisioning.  
-- Minimal EC2 and RDS footprint to stay within credits.  
+- Auto-destroy idle infrastructure via Idle-Reaper Lambda.  
+- Terraform backend in **S3 + DynamoDB** for safe, resumable deploys.    
+- Minimal EC2 and RDS footprint to stay within AWS credits.  
 - Database in **private subnets** with no public exposure.  
-- ALB health checks drive stability and cost‑efficient uptime.  
-- DNS hosted in **Route 53**; GitHub OIDC replaces long‑lived IAM keys.  
+- ALB health checks drive stability and cost-efficient uptime.  
+- DNS hosted in **Route 53**; GitHub OIDC replaces long-lived IAM keys.  
 
 Estimated runtime cost: **<$1/day** when active; **~$0 when sleeping.**
 
 ---
 
-## 🧰 Common Terraform & AWS CLI Commands
+##  Common Terraform & AWS CLI Commands
 
 ### Terraform Lifecycle
 ```bash
@@ -219,14 +220,14 @@ aws lambda get-function-configuration --function-name multi-tier-demo-idle-reape
 
 ---
 
-## 🔐 Secrets Management
+##  Secrets Management
 
 All secrets (GitHub token, DB credentials, API keys) are stored in **AWS SSM Parameter Store** as **SecureString**.  
 Terraform and Lambdas read them dynamically — no plaintext secrets in `.tfvars` or source code.
 
 ---
 
-### 🧹 Workflow Hygiene & Security
+###  Workflow Hygiene & Security
 
 - **Automated log cleanup** — completed GitHub Actions runs are automatically purged by a dedicated `cleanup-logs` workflow, keeping the repository lean and free from obsolete logs.  
 - **Sensitive data masking** — all AWS account IDs, domain names, and API endpoints are masked in workflow output for safe, production-grade logging.  
@@ -234,7 +235,7 @@ Terraform and Lambdas read them dynamically — no plaintext secrets in `.tfvars
 
 ---
 
-## 🚀 GitHub Actions Automation
+##  GitHub Actions Automation
 
 - Workflow: `.github/workflows/infra.yml`  
 - Triggers: `workflow_dispatch`, `repository_dispatch`, or wake via Lambda  
@@ -244,18 +245,35 @@ Terraform and Lambdas read them dynamically — no plaintext secrets in `.tfvars
 
 ---
 
-## 💵 Budget & Credits
+## 🛠 Terraform CI (Pull Request Checks)
 
-Optimized for **AWS Free Tier / Student Credits**:
-- Minimal EC2 runtime (short active window)
-- RDS stopped outside wake period
-- S3/CloudFront static content billed in pennies
-- DynamoDB lock table `PAY_PER_REQUEST`
-- GitHub Actions used only when invoked by API
+Every pull request automatically runs a full IaC validation pipeline:
+
+- `terraform fmt -check -recursive`
+- `terraform init -backend=false`
+- `terraform validate`
+- **TFLint** (linting)
+- **tfsec** (security scan, soft-fail)
+- (optional) **Checkov**
+- Plan artifact generation (coming soon)
+
+Workflow: `.github/workflows/terraform-ci.yml`
 
 ---
 
-## 🧠 Quick Reference
+##  Budget & Credits
+
+Optimized for **AWS Free Tier / Credits**:
+
+- Minimal EC2 runtime (environment lives only while “awake”).  
+- RDS is **created on wake and destroyed on sleep** together with the rest of the stack.  
+- S3/CloudFront static content billed in pennies.  
+- DynamoDB lock table uses `PAY_PER_REQUEST`.  
+- GitHub Actions runs only when invoked by the wake/CI flow.
+
+---
+
+##  Quick Reference
 
 | Command | Purpose |
 |---|---|
@@ -267,7 +285,35 @@ Optimized for **AWS Free Tier / Student Credits**:
 
 ---
 
-## 🧾 License
+##  Screenshots
+
+###  Wait Page — Idle State
+Shows the static wait site hosted on **S3 + CloudFront** while the environment is asleep.
+![wait-idle](./docs/screens/wait-idle.png)
+
+###  Wake Progress — Provisioning in Progress
+Real-time progress bar and countdown during Terraform apply (≈12–15 minutes).
+![wait-progress](./docs/screens/wait-progress.png)
+
+###  Notes App — Fully Deployed
+The application served via **ALB → EC2 → Node.js** with RDS backend online.
+![app-notes](./docs/screens/app-notes.png)
+
+###  RDS Console — Private Database Layer
+RDS instance running in **private subnets**, using AWS-managed master password.
+![rds-console](./docs/screens/rds-console.png)
+
+###  Lambda Heartbeat — Activity Tracking
+Heartbeat Lambda updates `last_wake` every minute via SSM.
+![lambda-heartbeat](./docs/screens/lambda-heartbeat.png)
+
+###  GitHub Actions — Infra Pipeline Runs
+Shows apply/destroy workflows triggered by wake/sleep automation.
+![gha-runs](./docs/screens/gha-runs.png)
+
+---
+
+##  License
 
 Released under the **MIT License** — feel free to use, fork, and learn from it.  
 © Ruslan Dashkin (🚀Ruslan AWS)

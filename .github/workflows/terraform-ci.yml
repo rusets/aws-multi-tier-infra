@@ -1,0 +1,81 @@
+name: terraform-ci
+
+on:
+  pull_request:
+    branches:
+      - main
+    paths:
+      - "infra/**"
+      - ".github/workflows/terraform-ci.yml"
+      - ".tflint.hcl"
+
+permissions:
+  contents: read
+
+env:
+  TF_IN_AUTOMATION: "1"
+
+jobs:
+  terraform-ci:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: infra
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@651471c36a6092792c552e8b1bef71e592b462d8
+        with:
+          terraform_version: 1.9.8
+          terraform_wrapper: false
+
+      - name: Setup tflint
+        uses: terraform-linters/setup-tflint@4cb9feea73331a35b422df102992a03a44a3bb33
+
+      - name: Terraform fmt (check)
+        run: terraform fmt -check -recursive
+
+      - name: Terraform init (no backend)
+        run: terraform init -backend=false -input=false -no-color
+
+      - name: Terraform validate
+        run: terraform validate -no-color
+
+      - name: tflint
+        run: tflint
+
+      - name: tfsec
+        uses: aquasecurity/tfsec-action@1cecaa0e282c0a5c9637da8a5c85261c3e35c384
+        with:
+          working_directory: infra
+
+      - name: checkov
+        uses: bridgecrewio/checkov-action@99bb2caf247dfd9f03cf984373bc6043d4e32ebf
+        with:
+          directory: infra
+          framework: terraform
+
+      - name: Terraform plan (speculative, summary only)
+        env:
+          TF_VAR_hosted_zone_id: dummy-zone-id
+          TF_VAR_acm_certificate_arn: arn:aws:acm:us-east-1:000000000000:certificate/dummy
+          TF_VAR_ami_id: ami-00000000000000000
+        run: |
+          terraform plan -input=false -lock=false -refresh=false -no-color -out=tfplan || true
+          terraform show -no-color tfplan > tfplan.txt || true
+
+          {
+            echo "## Terraform plan (speculative)"
+            echo
+            if [ -f tfplan.txt ]; then
+              echo '```'
+              sed -e 's/\x1b\[[0-9;]*m//g' tfplan.txt | head -n 200
+              echo
+              echo '```'
+            else
+              echo "_Plan failed or not generated._"
+            fi
+          } >> "$GITHUB_STEP_SUMMARY"
