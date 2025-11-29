@@ -426,6 +426,6 @@ Shows apply/destroy workflows triggered by wake/sleep automation.
 
 ##  License
 
-Released under the **MIT License** — feel free to use, fork, and learn from it.  
-© Ruslan Dashkin (🚀Ruslan AWS)
-Branding name “🚀Ruslan AWS” and related visuals are protected; commercial reuse or rebranding without permission is prohibited.
+- Released under the **MIT License** — free to use, modify, and learn from.
+- © Ruslan Dashkin (“🚀 Ruslan AWS”).
+- The “🚀 Ruslan AWS” branding and all related visuals are protected; commercial reuse or rebranding is prohibited without permission.
