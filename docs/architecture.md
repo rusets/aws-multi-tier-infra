@@ -73,6 +73,7 @@ aws-multi-tier-infra/
 │   └── screens/                      # Screenshots of UI and AWS console
 
 ├── infra/
+|   ├── .tflint.hcl
 │   ├── alb_domain.tf                 # ALB hostname, Route 53 records, HTTPS
 │   ├── artifacts.tf                  # App build/package -> S3 artifact bucket
 │   ├── backend.tf                    # Terraform remote state (S3 + DynamoDB)
