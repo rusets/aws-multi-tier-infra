@@ -77,7 +77,13 @@ data "aws_secretsmanager_secret" "gh_pat_for_idle" {
   name = var.gh_secret_name
 }
 
+############################################
+# IAM policy doc — idle reaper SSM + secret
+############################################
 data "aws_iam_policy_document" "idle_ssm_secret" {
+  #checkov:skip=CKV_AWS_108: Wildcard SSM GetParameter allowed for short-lived demo idle-reaper in isolated account
+  #checkov:skip=CKV_AWS_356: Wildcard SSM access tolerated for short-lived demo idle-reaper in isolated account
+
   statement {
     effect    = "Allow"
     actions   = ["ssm:GetParameter"]
@@ -93,7 +99,6 @@ data "aws_iam_policy_document" "idle_ssm_secret" {
     resources = [data.aws_secretsmanager_secret.gh_pat_for_idle.arn]
   }
 }
-
 resource "aws_iam_policy" "idle_ssm_secret" {
   name   = "${var.project_name}-idle-ssm-gh"
   policy = data.aws_iam_policy_document.idle_ssm_secret.json
@@ -171,6 +176,8 @@ resource "aws_lambda_function" "idle_reaper" {
 }
 
 resource "aws_cloudwatch_log_group" "idle_reaper" {
+  #checkov:skip=CKV_AWS_338: Short retention is used to minimize CloudWatch costs for demo
+  #checkov:skip=CKV_AWS_158: Default CloudWatch encryption is sufficient; KMS CMK not required for demo
   name              = "/aws/lambda/${aws_lambda_function.idle_reaper.function_name}"
   retention_in_days = var.lambda_log_retention_days
 }

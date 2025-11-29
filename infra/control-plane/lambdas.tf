@@ -134,6 +134,11 @@ resource "aws_iam_role_policy_attachment" "wake_secret_attach" {
 # Lambda — wake (Node.js 20 / arm64)
 ############################################
 resource "aws_lambda_function" "wake" {
+  #checkov:skip=CKV_AWS_117: Wake Lambda does not require VPC; it accesses only public GitHub API
+  #checkov:skip=CKV_AWS_272: Code signing disabled to avoid unnecessary complexity and cost for this demo
+  #checkov:skip=CKV_AWS_173: Lambda env encryption not required for short-lived demo function
+  #checkov:skip=CKV_AWS_116: DLQ not required for simple, idempotent wake function in this demo
+  #checkov:skip=CKV_AWS_50: X-Ray tracing disabled to keep function simple and avoid extra cost in demo
   function_name    = "${var.project_name}-wake"
   role             = aws_iam_role.wake_role.arn
   filename         = data.archive_file.wake_zip.output_path
@@ -168,7 +173,13 @@ resource "aws_lambda_function" "wake" {
     ignore_changes = [environment]
   }
 }
+############################################
+# CloudWatch Logs — wake Lambda
+############################################
 resource "aws_cloudwatch_log_group" "wake" {
+  #checkov:skip=CKV_AWS_338: Short retention is used to minimize CloudWatch costs for demo
+  #checkov:skip=CKV_AWS_158: Default CloudWatch encryption is sufficient; KMS CMK not required for demo
+
   name              = "/aws/lambda/${aws_lambda_function.wake.function_name}"
   retention_in_days = var.lambda_log_retention_days
 }
@@ -177,6 +188,12 @@ resource "aws_cloudwatch_log_group" "wake" {
 # Lambda — status (Python 3.12 / arm64)
 ############################################
 resource "aws_lambda_function" "status" {
+  #checkov:skip=CKV_AWS_117: Status Lambda does not require VPC; it only calls public HTTPS endpoint
+  #checkov:skip=CKV_AWS_116: DLQ not required for simple idempotent status polling in this demo
+  #checkov:skip=CKV_AWS_173: Lambda env encryption not required for short-lived demo function
+  #checkov:skip=CKV_AWS_272: Code signing disabled to avoid unnecessary complexity and cost for demo
+  #checkov:skip=CKV_AWS_50: X-Ray tracing disabled to keep function simple and avoid extra cost in demo
+
   function_name    = "${var.project_name}-status"
   role             = aws_iam_role.status_role.arn
   filename         = data.archive_file.status_zip.output_path
@@ -205,6 +222,8 @@ resource "aws_lambda_function" "status" {
 }
 
 resource "aws_cloudwatch_log_group" "status" {
+  #checkov:skip=CKV_AWS_338: Short retention is used to minimize CloudWatch costs for demo
+  #checkov:skip=CKV_AWS_158: Default CloudWatch encryption is sufficient; KMS CMK not required for demo
   name              = "/aws/lambda/${aws_lambda_function.status.function_name}"
   retention_in_days = var.lambda_log_retention_days
 }

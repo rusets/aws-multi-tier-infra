@@ -9,14 +9,18 @@ terraform {
       source  = "hashicorp/aws"
       version = "~> 5.60"
     }
+
     archive = {
       source  = "hashicorp/archive"
       version = "~> 2.5"
     }
+
+    null = {
+      source  = "hashicorp/null"
+      version = "~> 3.2"
+    }
   }
 }
-
-
 
 ############################################
 # AWS provider — region & default tags

@@ -17,15 +17,6 @@ variable "region" {
   default     = "us-east-1"
 }
 
-############################################
-# Existing API Gateway configuration
-############################################
-variable "existing_http_api_name" {
-  description = "Existing HTTP API name"
-  type        = string
-  default     = "multi-tier-wait-api"
-}
-
 variable "api_stage_name" {
   description = "HTTP API stage"
   type        = string

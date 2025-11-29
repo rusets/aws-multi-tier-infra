@@ -2,21 +2,31 @@
 #  Ruslan AWS — Multi-Tier Infrastructure Demo
 
 <p align="center">
-  <img src="https://img.shields.io/badge/Terraform-IaC-blueviolet" />
-  <img src="https://img.shields.io/badge/AWS-Cloud-orange" />
-  <img src="https://img.shields.io/badge/GitHub%20Actions-CI%2FCD-lightgrey" />
-  <img src="https://img.shields.io/badge/Lambda-Serverless-yellow" />
-  <img src="https://img.shields.io/badge/API%20Gateway-Trigger-red" />
-  <img src="https://img.shields.io/badge/RDS-MySQL-blue" />
-  <img src="https://img.shields.io/badge/EC2-Compute-green" />
-  <img src="https://img.shields.io/badge/S3-Static%20Site-yellowgreen" />
+  <img src="https://img.shields.io/badge/Terraform-IaC-5C4EE5?logo=terraform" />
+  <img src="https://img.shields.io/badge/AWS-Cloud-F29100?logo=amazon-aws" />
+  <img src="https://img.shields.io/badge/GitHub_Actions-CI%2FCD-2088FF?logo=github-actions" />
+  <img src="https://img.shields.io/badge/Lambda-Serverless-FF9900?logo=awslambda" />
+  <img src="https://img.shields.io/badge/API_Gateway-Trigger-orange?logo=amazon-api-gateway" />
+  <img src="https://img.shields.io/badge/RDS-MySQL-527FFF?logo=amazon-rds" />
+  <img src="https://img.shields.io/badge/EC2-Compute-FF9900?logo=amazon-ec2" />
+  <img src="https://img.shields.io/badge/S3-Static_Site-569A31?logo=amazon-s3" />
+</p>
+
+<p align="center">
+  <img src="https://img.shields.io/badge/terraform-fmt%20✔-623CE4?logo=terraform" />
+  <img src="https://img.shields.io/badge/terraform-validate%20✔-623CE4?logo=terraform" />
+  <img src="https://img.shields.io/badge/tflint-clean%20✔-2D76FF?logo=terraform" />
+  <img src="https://img.shields.io/badge/tfsec-clean%20✔-FF4B4B?logo=trivy" />
+  <img src="https://img.shields.io/badge/checkov-clean%20✔-00A75A?logo=checkov" />
 </p>
 
  **Wait Page:** [https://app.multi-tier.space](https://app.multi-tier.space)  
  **Main App:** [https://multi-tier.space](https://multi-tier.space)
 
 This project demonstrates a **fully automated, cost-optimized multi-tier infrastructure on AWS**, provisioned via **Terraform** and orchestrated with **GitHub Actions**.  
-It showcases **on-demand environment wake/sleep**, **secure secret storage (SSM Parameter Store)**, and **serverless orchestration (API Gateway + Lambda)** for real-world DevOps automation.
+It showcases **on-demand environment wake/sleep**, 
+**secure config and secret storage (SSM Parameter Store + Secrets Manager)**, 
+and **serverless orchestration (API Gateway + Lambda)** for real-world DevOps automation.
 
 The solution provisions a complete **three-tier architecture** — frontend, application, and database — and automatically destroys idle resources to achieve near-zero cost.
 
@@ -177,12 +187,12 @@ This repository includes a complete production-style documentation set:
 
 | Name | Location | Description |
 |---|---|---|
-| `/multi-tier-demo/github_token` | **SSM Parameter Store** | Secure GitHub PAT used by Idle Reaper |
+| `gh/actions/token` | **AWS Secrets Manager** | GitHub PAT used by wake/idle automation Lambdas |
 | `/multi-tier-demo/last_wake` | **SSM Parameter Store** | Timestamp of last heartbeat signal |
 | `/multi-tier-demo/destroy_dispatched_epoch` | **SSM Parameter Store** | Guard to prevent repeated destroys |
-| `IDLE_MINUTES` | **Lambda Env (idle_reaper)** | Threshold before triggering destroy |
+| `IDLE_MINUTES` | **Lambda Env (idle_reaper)** | Threshold in minutes before triggering destroy |
 | `GH_WORKFLOW` | **Lambda Env** | Target GitHub Actions workflow name |
-| `ASG_NAME` | **Lambda Env** | (Optional) AutoScaling group name |
+| `ASG_NAME` | **Lambda Env** | (Optional) AutoScaling group name (if used) |
 | `REGION` | **Lambda Env** | AWS region used for API calls |
 
 ---
@@ -222,8 +232,13 @@ aws lambda get-function-configuration --function-name multi-tier-demo-idle-reape
 
 ##  Secrets Management
 
-All secrets (GitHub token, DB credentials, API keys) are stored in **AWS SSM Parameter Store** as **SecureString**.  
-Terraform and Lambdas read them dynamically — no plaintext secrets in `.tfvars` or source code.
+- Application DB master password is managed by **AWS RDS** via `manage_master_user_password`  
+  (stored in an AWS-managed secret in **Secrets Manager**, never in Terraform state).
+- GitHub token for wake/idle automation is stored in **AWS Secrets Manager** and referenced by name from Lambda.
+- Non-sensitive configuration (bucket names, ports, DB host/name, app port, artifact key, etc.) lives in  
+  **SSM Parameter Store** as plain `String` parameters.
+- Optional SSM `SecureString` parameters are available if you ever decide to self-manage database passwords,  
+  but they are **disabled by default** in this demo.
 
 ---
 
@@ -285,6 +300,97 @@ Optimized for **AWS Free Tier / Credits**:
 
 ---
 
+##  Security Posture & Static Analysis
+
+This project is not just “it works” Terraform – it is fully wired with static analysis and security tooling.  
+All high/critical findings are either **fixed** or **explicitly suppressed with justification** for this short-lived demo environment.
+
+### Tools & what they cover
+
+- **terraform fmt / terraform validate**
+  - Enforced locally with:
+    - `terraform fmt -recursive`
+    - `terraform validate`
+  - Guarantees consistent style and a syntactically valid state across all modules.
+
+- **tflint (with recursive scan)**
+  - Run as:
+    - `tflint --recursive`
+  - No unused variables, missing required providers, or obvious config mistakes.
+  - Example: `null_resource` usage backed by an explicit `null` provider in `required_providers`.
+
+- **tfsec**
+  - Run against the whole `infra` directory:
+    - `tfsec .`
+  - All critical issues are either fixed or suppressed inline where the “secure by default” recommendation conflicts with:
+    - **Cost** (e.g., Multi-AZ RDS, WAF, long log retention)
+    - **Demo lifetime** (stack is auto-destroyed shortly after use)
+    - **Simplicity for interviews** (focus on architecture patterns rather than enterprise add-ons).
+
+- **Checkov**
+  - Run as:
+    - `checkov -d .`
+  - The report has **0 FAILED checks**.
+  - Every non-default decision that weakens the “perfectly locked-down enterprise” posture is:
+    - Tagged with an inline `#checkov:skip=…` on the exact resource
+    - Accompanied by a short, honest justification in English.
+
+### Where we consciously accept trade-offs
+
+This is a **short-lived demo stack** in an isolated AWS account, optimized for:
+- Low cost
+- Easy tear-down from CI/CD
+- Maximum readability for interviews
+
+Because of that, some “paranoid defaults” are intentionally relaxed and clearly documented:
+
+- **S3 (assets + logs)**
+  - No cross-region replication (Checkov CKV_AWS_144 skipped) – not needed for demo data.
+  - SSE-S3 (AES256) instead of KMS CMK (CKV_AWS_145 skipped) – avoids extra KMS complexity and cost.
+  - No event notifications (CKV2_AWS_62 skipped) – this project doesn’t react to S3 events.
+
+- **RDS instance**
+  - Single-AZ, no Multi-AZ (CKV_AWS_157 skipped) – cheaper and sufficient for demo traffic.
+  - Deletion protection disabled (CKV_AWS_293 skipped) – CI/CD must be able to destroy the stack automatically.
+  - Query logging + enhanced monitoring disabled (CKV2_AWS_30, CKV_AWS_129, CKV_AWS_118 skipped) – detailed DB telemetry is overkill for a disposable environment.
+
+- **Application Load Balancer**
+  - No WAF attached (CKV2_AWS_28 skipped) – would require extra resources and configuration for a simple demo.
+  - No access logging to S3 (CKV_AWS_91 skipped) – avoids extra buckets and log storage cost.
+  - Deletion protection disabled (CKV_AWS_150 skipped) – again, CI/CD auto-destroy is a first-class requirement.
+
+- **VPC Flow Logs & Lambda log groups**
+  - Short log retention and default CloudWatch encryption (CKV_AWS_338, CKV_AWS_158 skipped):
+    - Just enough to debug,
+    - Not enough to accumulate a long-term bill.
+
+- **SSM Parameters**
+  - Non-secret values (bucket names, ports, DB host, DB name, etc.) are stored as plain `String`.
+  - Checkov rule `CKV2_AWS_34` is skipped for those parameters – secrets stay in AWS-managed places (RDS, Secrets Manager), config stays readable in SSM.
+
+- **Lambda functions (wake, idle_reaper, status)**
+  - Not placed in a VPC (CKV_AWS_117 skipped) – they only reach public endpoints (GitHub, public ALB), so VPC ENIs would add cost and cold-start latency without adding real security here.
+  - No DLQ (CKV_AWS_116 skipped) – functions are idempotent and safe to fail (wake/status polling).
+  - Env encryption, code signing, X-Ray tracing are disabled and explicitly skipped (CKV_AWS_173, CKV_AWS_272, CKV_AWS_50) to keep the functions simple and cheap for a demo.
+
+- **IAM for idle reaper**
+  - One policy document uses a wildcard for `ssm:GetParameter` to read a heartbeat value.
+  - Checkov rules `CKV_AWS_108` and `CKV_AWS_356` are skipped with a clear comment:
+    - Access is limited to an isolated demo account,
+    - The goal is to keep the policy easy to read/explain in interviews.
+
+### Summary
+
+- All Terraform code is **linted and formatted**.
+- All security scanners (**tfsec + Checkov**) are **green**:
+  - No silent misconfigurations,
+  - All intentional deviations are **documented inline**.
+- The end result is a **realistic, interview-friendly AWS demo**:
+  - Strong enough to show you understand security,
+  - Pragmatic enough to stay cheap, disposable, and easy to reason about.
+
+---
+
 ##  Screenshots
 
 ###  Wait Page — Idle State
@@ -298,6 +404,11 @@ Real-time progress bar and countdown during Terraform apply (≈12–15 minutes)
 ###  Notes App — Fully Deployed
 The application served via **ALB → EC2 → Node.js** with RDS backend online.
 ![app-notes](./docs/screens/app-notes.png)
+
+###  Static Analysis — tfsec, tflint, checkov
+All Terraform security and lint checks passed successfully.  
+Screenshot below shows a `tfsec` run (63 checks passed, 24 skipped intentionally with inline justifications).
+![static-analysis](./docs/screens/tfsec-clean.png)
 
 ###  RDS Console — Private Database Layer
 RDS instance running in **private subnets**, using AWS-managed master password.

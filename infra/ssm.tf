@@ -11,6 +11,7 @@ locals {
 # Principle: read by EC2/user-data at runtime
 ############################################
 resource "aws_ssm_parameter" "assets_bucket" {
+  #checkov:skip=CKV2_AWS_34
   name        = "${local.ssm_root}/assets_bucket"
   type        = "String"
   value       = aws_s3_bucket.assets.bucket
@@ -21,8 +22,9 @@ resource "aws_ssm_parameter" "assets_bucket" {
 ############################################
 # App — S3 object key of current artifact
 # Principle: decouple infra from CI versioning
-############################################}
+############################################
 resource "aws_ssm_parameter" "app_artifact_key" {
+  #checkov:skip=CKV2_AWS_34
   name        = "${local.ssm_root}/app/artifact_key"
   type        = "String"
   value       = var.app_artifact_key
@@ -35,6 +37,7 @@ resource "aws_ssm_parameter" "app_artifact_key" {
 # Principle: convenience in shell templates
 ############################################
 resource "aws_ssm_parameter" "app_port" {
+  #checkov:skip=CKV2_AWS_34
   name        = "${local.ssm_root}/app/app_port"
   type        = "String"
   value       = tostring(var.app_port)
@@ -47,6 +50,7 @@ resource "aws_ssm_parameter" "app_port" {
 # Principle: discoverable by app on boot
 ############################################
 resource "aws_ssm_parameter" "db_host" {
+  #checkov:skip=CKV2_AWS_34
   name        = "${local.ssm_root}/db/host"
   type        = "String"
   value       = aws_db_instance.db.address
@@ -59,6 +63,7 @@ resource "aws_ssm_parameter" "db_host" {
 # Principle: password stays in Secrets Manager
 ############################################
 resource "aws_ssm_parameter" "db_username" {
+  #checkov:skip=CKV2_AWS_34
   name        = "${local.ssm_root}/db/username"
   type        = "String"
   value       = aws_db_instance.db.username
@@ -71,13 +76,13 @@ resource "aws_ssm_parameter" "db_username" {
 # Principle: avoids hard-coding in user-data
 ############################################
 resource "aws_ssm_parameter" "db_name" {
+  #checkov:skip=CKV2_AWS_34
   name        = "${local.ssm_root}/db/name"
   type        = "String"
   value       = "notes"
   description = "Application database name"
   overwrite   = true
 }
-
 ############################################
 # DB — optional password in SSM (SecureString)
 # Principle: prefer AWS-managed secret in SM

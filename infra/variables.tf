@@ -154,11 +154,13 @@ variable "namespace" {
 }
 
 ############################################
-# SSM Configuration
+# Flag — write DB password into SSM
+# Purpose: Enable one-time write of generated DB password to SSM parameter
 ############################################
 variable "ssm_write_db_password" {
-  type    = bool
-  default = false
+  type        = bool
+  default     = false
+  description = "When true, writes the generated RDS master password into an SSM parameter for debugging/demo."
 }
 
 variable "ssm_kms_key_id" {
@@ -213,10 +215,3 @@ variable "enable_www_alias" {
   default     = true
 }
 
-############################################
-# Launch Template AMI
-############################################
-variable "ami_id" {
-  description = "Pinned AMI ID for the Launch Template (ami-*)"
-  type        = string
-}
