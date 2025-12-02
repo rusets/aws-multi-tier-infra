@@ -23,12 +23,16 @@
  **Wait Page:** [https://app.multi-tier.space](https://app.multi-tier.space)  
  **Main App:** [https://multi-tier.space](https://multi-tier.space)
 
-This project demonstrates a **fully automated, cost-optimized multi-tier infrastructure on AWS**, provisioned via **Terraform** and orchestrated with **GitHub Actions**.  
-It showcases **on-demand environment wake/sleep**, 
-**secure config and secret storage (SSM Parameter Store + Secrets Manager)**, 
-and **serverless orchestration (API Gateway + Lambda)** for real-world DevOps automation.
+This project demonstrates a **fully automated, cost-optimized multi-tier infrastructure on AWS**, provisioned with **Terraform** and orchestrated through **GitHub Actions**.
 
-The solution provisions a complete **three-tier architecture** — frontend, application, and database — and automatically destroys idle resources to achieve near-zero cost.
+It includes:
+
+- **On-demand wake/sleep automation**  
+- **Serverless orchestration** using API Gateway, Lambda, and GitHub OIDC  
+- **Secure configuration and secret management** (SSM + Secrets Manager)  
+- **Full three-tier stack** with frontend, application layer, and database  
+- **Auto-destroy of idle resources** — environment exists only while needed, then tears down automatically  
+- **Static wait site** hosted on S3 + CloudFront, always available even when the environment sleeps  
 
 ---
 
@@ -69,43 +73,41 @@ flowchart TD
 
 | Service | Purpose |
 |---|---|
-| **Lambda** | Wake, Status, Heartbeat, Idle-Reaper automation |
-| **API Gateway (HTTP)** | Public endpoint for wake/status triggers |
-| **EC2 (Amazon Linux 2023)** | Runs backend app and connects to ALB |
-| **Application Load Balancer (ALB)** | Routes requests, performs health checks, and manages scaling |
-| **RDS (MySQL, Private Subnet)** | Secure database isolated from public access |
-| **S3 + CloudFront** | Static wait-site hosting (`app.multi-tier.space`) |
-| **Route 53** | DNS management for `multi-tier.space` and `app.multi-tier.space` |
-| **SSM Parameter Store** | Secure config & secret storage |
-| **DynamoDB** | Terraform state locking table |
-| **IAM + OIDC (GitHub)** | Short‑lived credentials for CI |
-| **CloudWatch Logs** | Centralized logging for Lambdas and workflows |
+| **Lambda** | Wake/Status automation, heartbeat, idle-reaper logic |
+| **API Gateway (HTTP)** | Public entrypoint for wake/status endpoints |
+| **EC2 (Amazon Linux 2023)** | Application compute layer for backend |
+| **Application Load Balancer (ALB)** | Routing, health checks, HTTPS termination |
+| **RDS MySQL (Private Subnets)** | Persistent database isolated from the public internet |
+| **S3 + CloudFront** | Static wait site for `app.multi-tier.space` |
+| **Route 53** | DNS management for both domains |
+| **SSM Parameter Store** | Runtime configuration + heartbeat timestamp |
+| **Secrets Manager** | GitHub token + AWS-managed RDS master password |
+| **DynamoDB** | Terraform state locking (safe applies/destroys) |
+| **IAM + OIDC** | Secure short-lived credentials for GitHub Actions |
+| **CloudWatch Logs** | Centralized logging for all Lambdas |
 
 ---
 
-##  Wake/Sleep Lifecycle
+##  Wake / Sleep Lifecycle
 
-The environment sleeps when idle and wakes only when requested.
+The environment uses a **cost-optimized wake/sleep model**:
+
+- When idle, only the **static wait page** remains online (S3 + CloudFront).  
+- When a user presses **“Wake up”**, API Gateway → Lambda → GitHub Actions triggers a full `terraform apply`.  
+- The stack provisions EC2, ALB, RDS, IAM, VPC networking, and bootstrap scripts.  
+- Once provisioning completes, the endpoint `https://multi-tier.space` becomes active and the “Open App” button unlocks.  
+- A heartbeat Lambda updates `/multi-tier-demo/last_wake` every minute.  
+- If no activity is detected, the Idle-Reaper Lambda triggers a `destroy` workflow.  
+- The stack returns to the lightweight **idle state**, costing nearly zero.
 
 **Lambdas involved:**
-- **`multi-tier-demo-heartbeat`** — updates `/multi-tier-demo/last_wake` every minute.
-- **`multi-tier-demo-idle-reaper`** — checks last wake timestamp; if threshold exceeded, triggers `destroy` via GitHub Actions.
-- **`multi-tier-demo-status`** — reports live status (ready / waking / idle) to frontend.
-- **`multi-tier-demo-wake`** — receives POST requests from the wait page and starts the `apply` workflow.
 
-## Default Timings (Current Configuration)
+- `multi-tier-demo-wake` — triggers the GitHub Actions provision workflow  
+- `multi-tier-demo-status` — reports live state (ready / waking / idle)  
+- `multi-tier-demo-heartbeat` — updates last wake timestamp  
+- `multi-tier-demo-idle-reaper` — destroys environment after inactivity  
 
-- **Heartbeat Lambda**  
-  Updates `/multi-tier-demo/last_wake` every **60 seconds**.
-
-- **Idle-Reaper Threshold**  
-  Automatically triggers `destroy` after **10 minutes** of inactivity.
-
-- **Cooldown Guard**  
-  Prevents repeated destroy calls for **30 minutes** after the last destroy event.
-
-- **Full Wake Cycle Duration**  
-  Total time for provisioning (Terraform apply + service warm-up): **12–15 minutes**.
+This pattern allows the entire infrastructure to exist **only when needed**, and disappear completely when idle — ideal for demos, interviews, and credit-efficient cloud labs.
 
 ---
 
@@ -269,7 +271,7 @@ Every pull request automatically runs a full IaC validation pipeline:
 - `terraform validate`
 - **TFLint** (linting)
 - **tfsec** (security scan, soft-fail)
-- (optional) **Checkov**
+- **Checkov** (policy-as-code/security rules)
 - Plan artifact generation (coming soon)
 
 Workflow: `.github/workflows/terraform-ci.yml`
