@@ -2,75 +2,76 @@
 
 ```text
 aws-multi-tier-infra/
-├── .checkov.yml                      # Checkov policy-as-code configuration
-├── LICENSE                           # MIT License for the entire project
+├── .checkov.yml                      # Checkov config (policy-as-code)
+├── .gitignore                        # Ignore rules (builds, .terraform/, logs)
+├── .tflint.hcl                       # TFLint config (lint rules for Terraform)
+├── LICENSE                           # MIT License (root-level, always)
 ├── README.md                         # Main documentation (architecture + usage)
 │
-├── .github/                          # GitHub Actions + templates
+├── .github/
 │   ├── ISSUE_TEMPLATE/
 │   │   ├── bug.md                    # Bug report form
 │   │   └── feature.md                # Feature request form
-│   ├── pull_request_template.md       # PR checklist for contributors
+│   ├── pull_request_template.md       # PR checklist
 │   └── workflows/
-│       ├── app.yml                   # Build & package Notes App to artifacts
-│       ├── cleanup.yml               # Auto-delete old GitHub Actions logs/artifacts
+│       ├── app.yml                   # App build → artifacts S3
+│       ├── cleanup.yml               # Auto-purge old GitHub Actions logs
 │       ├── infra.yml                 # Terraform apply/destroy via OIDC
-│       └── terraform-ci.yml          # fmt/validate/tflint/tfsec/checkov
+│       └── terraform-ci.yml          # fmt/validate/lint/security scans
 │
-├── app/                               # Notes App (backend + simple UI)
-│   ├── public/                        # Static assets (HTML/CSS/JS/img)
+├── app/                               # Notes App (Node.js)
+│   ├── public/
 │   ├── package.json
-│   └── server.js                      # Node.js Express backend
+│   └── server.js
 │
 ├── bootstrap/
-│   └── user_data.sh                   # EC2 bootstrap script (installs app + pulls SSM configs)
+│   └── user_data.sh                   # EC2 bootstrap (install app + fetch SSM)
 │
-├── build/                             # Local build artifacts (Not committed)
+├── build/                             # Local build output (ignored)
 │
-├── docs/                              # Full documentation set
-│   ├── architecture.md                # Architecture overview + diagrams
-│   ├── cost.md                        # Cost model & Free Tier strategy
-│   ├── monitoring.md                  # Metrics, alarms, health checks
-│   ├── slo.md                         # SLO/SLI definitions for the demo
-│   ├── threat-model.md                # Security assumptions & risks
-│   ├── adr/                           # Architectural Decision Records (ADR-0001..)
-│   ├── runbooks/                      # Operational runbooks (wake fail / destroy fail)
-│   ├── diagrams/                      # Mermaid diagrams + PNG exports
-│   └── screens/                       # Screenshots used inside README
+├── docs/                              # All documentation
+│   ├── architecture.md
+│   ├── cost.md
+│   ├── monitoring.md
+│   ├── slo.md
+│   ├── threat-model.md
+│   ├── adr/
+│   ├── runbooks/
+│   ├── diagrams/
+│   └── screens/
 │
-├── infra/                             # Terraform (main compute/data plane)
-│   ├── .tflint.hcl                    # TFLint configuration
-│   ├── alb_domain.tf                  # ALB domain, TLS, Route 53 records
-│   ├── artifacts.tf                   # App artifact bucket + upload logic
-│   ├── backend.tf                     # Terraform backend (S3 + DynamoDB)
-│   ├── locals.paths.tf                # Local values for artifact & build paths
-│   ├── main.tf                        # Core infra (VPC, subnets, ALB, EC2, RDS)
-│   ├── outputs.tf                     # Important outputs for Lambdas/control plane
-│   ├── providers.tf                   # Providers + version constraints
-│   ├── ssm.tf                         # SSM params (config, runtime values)
-│   ├── variables.tf                   # Input variables for main infra
+├── infra/                             # Terraform — main infra
+│   ├── alb_domain.tf
+│   ├── artifacts.tf
+│   ├── backend.tf
+│   ├── locals.paths.tf
+│   ├── main.tf
+│   ├── outputs.tf
+│   ├── providers.tf
+│   ├── ssm.tf
+│   ├── variables.tf
 │   └── control-plane/                 # Serverless wake/sleep automation
-│       ├── api.tf                     # API Gateway (HTTP) routes for wake/status
-│       ├── backend.tf                 # Control-plane remote state backend
-│       ├── dist/                      # Bundled Lambda deployment packages
-│       ├── idle.tf                    # Idle Reaper logic + event rules
-│       ├── lambdas.tf                 # Lambda sources (wake, status, heartbeat, reaper)
-│       ├── outputs.tf                 # Exposed ARNs, endpoints for wait-site
-│       ├── terraform.tfvars.example   # Example variables for reference
-│       ├── variables.tf               # Control-plane input variables
-│       └── versions.tf                # Required providers & versions
+│       ├── api.tf
+│       ├── backend.tf
+│       ├── dist/
+│       ├── idle.tf
+│       ├── lambdas.tf
+│       ├── outputs.tf
+│       ├── terraform.tfvars.example
+│       ├── variables.tf
+│       └── versions.tf
 │
-├── lambda/                            # Raw Lambda sources (Python)
-│   ├── heartbeat/                     # Updates /last_wake SSM param
-│   ├── idle_reaper/                   # Triggers destroy via GitHub API
-│   ├── status/                        # Reports (idle / waking / ready)
-│   └── wake/                          # Triggers GitHub Actions “apply”
+├── lambda/                            # Python sources (raw Lambdas)
+│   ├── heartbeat/
+│   ├── idle_reaper/
+│   ├── status/
+│   └── wake/
 │
 ├── scripts/
-│   └── rdapp.service                  # Systemd unit for Notes App on EC2
+│   └── rdapp.service                  # systemd unit for Notes App
 │
 └── wait-site/
-    └── index.html                     # Static “Wake” page (status + progress bar)
+    └── index.html                     # Static wait page (S3+CloudFront)
 ```
 ---
 
