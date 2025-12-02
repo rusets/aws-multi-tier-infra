@@ -20,6 +20,14 @@ jobs:
   terraform-ci:
     runs-on: ubuntu-latest
 
+    strategy:
+      fail-fast: false
+      matrix:
+        terraform_version:
+          - "1.7.5"
+          - "1.8.5"
+          - "1.9.8"
+
     defaults:
       run:
         working-directory: infra
@@ -31,7 +39,7 @@ jobs:
       - name: Setup Terraform
         uses: hashicorp/setup-terraform@v3
         with:
-          terraform_version: "1.9.8"
+          terraform_version: ${{ matrix.terraform_version }}
           terraform_wrapper: false
 
       - name: Setup TFLint
@@ -61,8 +69,9 @@ jobs:
         with:
           directory: infra
           framework: terraform
+          config_file: .checkov.yml
 
-      - name: Terraform plan (speculative, summary only)
+      - name: Terraform plan (speculative)
         env:
           TF_VAR_hosted_zone_id: dummy-zone-id
           TF_VAR_acm_certificate_arn: arn:aws:acm:us-east-1:000000000000:certificate/dummy
@@ -72,12 +81,11 @@ jobs:
           terraform show -no-color tfplan > tfplan.txt || true
 
           {
-            echo "## Terraform plan (speculative)"
+            echo "## Terraform plan — Terraform ${{ matrix.terraform_version }}"
             echo
             if [ -f tfplan.txt ]; then
               echo '```'
               sed -e 's/\x1b\[[0-9;]*m//g' tfplan.txt | head -n 200
-              echo
               echo '```'
             else
               echo "_Plan failed or not generated._"

@@ -424,6 +424,13 @@ Shows apply/destroy workflows triggered by wake/sleep automation.
 
 ---
 
+## **Author & Portfolio**
+
+Portfolio website: https://rusets.com  
+More real AWS, DevOps, IaC, and automation projects by **Ruslan AWS**.
+
+---
+
 ##  License
 
 - Released under the **MIT License** — free to use, modify, and learn from.

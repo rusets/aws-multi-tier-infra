@@ -1,0 +1,43 @@
+# Checkov configuration for aws-multi-tier-infra
+# We explicitly skip checks that conflict with this project's
+# demo / cost-optimization / public wake-endpoint design.
+
+skip-check:
+  # Lambda: no DLQ / no VPC / no extra hardening for short-lived demo
+  - CKV_AWS_116  # No DLQ – wake/idle/status Lambdas are safe to fail
+  - CKV_AWS_117  # No VPC – functions only hit public endpoints (GitHub, ALB)
+  - CKV_AWS_173  # No env KMS – no real secrets in env vars
+  - CKV_AWS_272  # No code signing – out of scope for this demo
+  - CKV_AWS_50   # No X-Ray tracing – keep Lambda simple and cheap
+
+  # IAM: slightly wider permissions but scoped to isolated demo account
+  - CKV_AWS_108  # Wildcard actions allowed in tightly scoped policies
+  - CKV_AWS_111  # Write access without extra constraints accepted here
+  - CKV_AWS_356  # Resource "*" used for SSM params in demo account
+
+  # API Gateway: wake/status endpoints intentionally public
+  - CKV_AWS_309  # No auth on HTTP API – public wake/status for demo UX
+
+  # S3: demo buckets for artifacts + access logs
+  - CKV_AWS_144  # No cross-region replication for demo data
+  - CKV_AWS_145  # SSE-S3 (AES256) instead of CMK is enough here
+  - CKV2_AWS_62  # No S3 event notifications – not used in this design
+  - CKV_AWS_300  # No abort-incomplete-multipart rule – tiny, short-lived buckets
+
+  # Security Groups: public ALB + default egress
+  - CKV_AWS_260  # HTTP/80 open on ALB – internet-facing load balancer
+  - CKV_AWS_382  # 0.0.0.0/0 egress – standard AWS default for outbound
+
+  # RDS: disposable demo DB, not enterprise-grade cluster
+  - CKV2_AWS_30  # Query logging disabled to reduce noise and cost
+  - CKV_AWS_157  # No Multi-AZ – single-AZ MySQL is enough for demo
+  - CKV_AWS_293  # Deletion protection off – CI/CD must be able to destroy
+  - CKV_AWS_129  # No enhanced monitoring – overkill for this stack
+  - CKV_AWS_118  # No log exports – CloudWatch logs not required here
+
+  # Logs / monitoring: short-lived environment, low retention
+  - CKV_AWS_338  # Log retention < 1 year – keep costs low
+  - CKV_AWS_158  # No KMS on log groups – default encryption is enough
+
+  # SSM Parameters: config as String, secrets elsewhere
+  - CKV2_AWS_34  # Non-secret config (ports, hosts, bucket names) as String
