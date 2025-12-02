@@ -2,67 +2,75 @@
 
 ```text
 aws-multi-tier-infra/
-├── .checkov.yml
-├── .github/
+├── .checkov.yml                      # Checkov policy-as-code configuration
+├── LICENSE                           # MIT License for the entire project
+├── README.md                         # Main documentation (architecture + usage)
+│
+├── .github/                          # GitHub Actions + templates
 │   ├── ISSUE_TEMPLATE/
-│   │   ├── bug.md                    # Bug report template
-│   │   └── feature.md                # Feature request template
-│   ├── pull_request_template.md      # Pull Request checklist
+│   │   ├── bug.md                    # Bug report form
+│   │   └── feature.md                # Feature request form
+│   ├── pull_request_template.md       # PR checklist for contributors
 │   └── workflows/
-│       ├── app.yml                   # App CI/CD (build & deploy artifacts)
-│       ├── cleanup.yml               # GitHub logs / artifacts cleanup
+│       ├── app.yml                   # Build & package Notes App to artifacts
+│       ├── cleanup.yml               # Auto-delete old GitHub Actions logs/artifacts
 │       ├── infra.yml                 # Terraform apply/destroy via OIDC
-│       └── terraform-ci.yml          # fmt / validate / security checks
-├── app/
-│   ├── public/                       # Static assets for Notes App
+│       └── terraform-ci.yml          # fmt/validate/tflint/tfsec/checkov
+│
+├── app/                               # Notes App (backend + simple UI)
+│   ├── public/                        # Static assets (HTML/CSS/JS/img)
 │   ├── package.json
-│   └── server.js                     # Node.js Notes App (backend + simple UI)
+│   └── server.js                      # Node.js Express backend
+│
 ├── bootstrap/
-│   └── user_data.sh                  # EC2 bootstrap script:
-│                                     # - install runtime
-│                                     # - fetch secrets/configs from SSM
-│                                     # - start app service
-├── build/                            # Build artifacts (ignored in source control)
-├── docs/
-│   ├── architecture.md               # This file — architecture overview + structure
-│   ├── cost.md                       # Cost profile & optimization strategies
-│   ├── monitoring.md                 # Metrics, dashboards, health checks
-│   ├── slo.md                        # Service Level Objectives and SLIs
-│   ├── threat-model.md               # Threat model & security assumptions
-│   ├── adr/                          # Architectural Decision Records
-│   ├── runbooks/                     # Incident response & operational runbooks
-│   ├── diagrams/                     # Architecture diagrams (Mermaid/PNG)
-│   └── screens/                      # Screenshots of UI and AWS console
-├── infra/
-|   ├── .tflint.hcl
-│   ├── alb_domain.tf                 # ALB hostname, Route 53 records, HTTPS
-│   ├── artifacts.tf                  # App build/package -> S3 artifact bucket
-│   ├── backend.tf                    # Terraform remote state (S3 + DynamoDB)
-│   ├── locals.paths.tf               # Paths and naming for builds and artifacts
-│   ├── main.tf                       # Core infra: VPC, subnets, ALB, ASG, RDS, SGs
-│   ├── outputs.tf                    # Outputs used by lambdas and external systems
-│   ├── providers.tf                  # AWS provider & required versions
-│   ├── ssm.tf                        # SSM parameter definitions (config, heartbeats)
-│   ├── variables.tf                  # Input variables for the stack
-│   └── control-plane/                # Serverless wake/sleep control plane
-│       ├── api.tf                    # HTTP API for wake/status endpoints
-│       ├── backend.tf                # Separate remote state for control-plane
-│       ├── dist/                     # Bundled Lambda deployment packages
-│       ├── idle.tf                   # Idle Reaper scheduler and permissions
-│       ├── lambdas.tf                # Lambda functions (wake, status, heartbeat, reaper)
-│       ├── outputs.tf
-│       ├── terraform.tfvars.example  # Sample vars for control-plane
-│       ├── variables.tf
-│       └── versions.tf               # Required versions
-├── lambda/
-│   ├── heartbeat/                    # Lambda: updates SSM heartbeat timestamp
-│   ├── idle_reaper/                  # Lambda: checks idle time and triggers destroy
-│   ├── status/                       # Lambda: reports infra status to wait-site
-│   └── wake/                         # Lambda: triggers GitHub Actions apply
+│   └── user_data.sh                   # EC2 bootstrap script (installs app + pulls SSM configs)
+│
+├── build/                             # Local build artifacts (Not committed)
+│
+├── docs/                              # Full documentation set
+│   ├── architecture.md                # Architecture overview + diagrams
+│   ├── cost.md                        # Cost model & Free Tier strategy
+│   ├── monitoring.md                  # Metrics, alarms, health checks
+│   ├── slo.md                         # SLO/SLI definitions for the demo
+│   ├── threat-model.md                # Security assumptions & risks
+│   ├── adr/                           # Architectural Decision Records (ADR-0001..)
+│   ├── runbooks/                      # Operational runbooks (wake fail / destroy fail)
+│   ├── diagrams/                      # Mermaid diagrams + PNG exports
+│   └── screens/                       # Screenshots used inside README
+│
+├── infra/                             # Terraform (main compute/data plane)
+│   ├── .tflint.hcl                    # TFLint configuration
+│   ├── alb_domain.tf                  # ALB domain, TLS, Route 53 records
+│   ├── artifacts.tf                   # App artifact bucket + upload logic
+│   ├── backend.tf                     # Terraform backend (S3 + DynamoDB)
+│   ├── locals.paths.tf                # Local values for artifact & build paths
+│   ├── main.tf                        # Core infra (VPC, subnets, ALB, EC2, RDS)
+│   ├── outputs.tf                     # Important outputs for Lambdas/control plane
+│   ├── providers.tf                   # Providers + version constraints
+│   ├── ssm.tf                         # SSM params (config, runtime values)
+│   ├── variables.tf                   # Input variables for main infra
+│   └── control-plane/                 # Serverless wake/sleep automation
+│       ├── api.tf                     # API Gateway (HTTP) routes for wake/status
+│       ├── backend.tf                 # Control-plane remote state backend
+│       ├── dist/                      # Bundled Lambda deployment packages
+│       ├── idle.tf                    # Idle Reaper logic + event rules
+│       ├── lambdas.tf                 # Lambda sources (wake, status, heartbeat, reaper)
+│       ├── outputs.tf                 # Exposed ARNs, endpoints for wait-site
+│       ├── terraform.tfvars.example   # Example variables for reference
+│       ├── variables.tf               # Control-plane input variables
+│       └── versions.tf                # Required providers & versions
+│
+├── lambda/                            # Raw Lambda sources (Python)
+│   ├── heartbeat/                     # Updates /last_wake SSM param
+│   ├── idle_reaper/                   # Triggers destroy via GitHub API
+│   ├── status/                        # Reports (idle / waking / ready)
+│   └── wake/                          # Triggers GitHub Actions “apply”
+│
 ├── scripts/
-│   └── rdapp.service                 # systemd unit file for Notes App on EC2
+│   └── rdapp.service                  # Systemd unit for Notes App on EC2
+│
 └── wait-site/
-    └── index.html                    # Static “Wake” page with progress / status UI
+    └── index.html                     # Static “Wake” page (status + progress bar)
 ```
 ---
 

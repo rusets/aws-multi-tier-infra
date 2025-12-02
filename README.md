@@ -150,7 +150,9 @@ aws-multi-tier-infra/
 ├── bootstrap/          # EC2 bootstrap (user_data.sh)
 ├── scripts/            # Systemd service units and helper scripts
 ├── docs/               # Architecture, SLO, ADR, runbooks, diagrams, screenshots
-└── .github/            # GitHub Actions (infra, app, cleanup, Terraform CI)
+├── .github/            # GitHub Actions (infra, app, cleanup, Terraform CI)
+├── LICENSE             # MIT License for the project
+└── README.md           # Main project documentation
 ```
 
 **Full detailed structure:** see [`docs/architecture.md`](./docs/architecture.md)
@@ -433,8 +435,9 @@ More real AWS, DevOps, IaC, and automation projects by **Ruslan AWS**.
 
 ---
 
-##  License
+## License
 
-- Released under the **MIT License** — free to use, modify, and learn from.
-- © Ruslan Dashkin (“🚀 Ruslan AWS”).
-- The “🚀 Ruslan AWS” branding and all related visuals are protected; commercial reuse or rebranding is prohibited without permission.
+Released under the MIT License.  
+See the LICENSE file for full details.
+
+Branding name “🚀 Ruslan AWS” and related visuals may not be reused or rebranded without permission.
