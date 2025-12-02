@@ -163,16 +163,24 @@ variable "ssm_write_db_password" {
   description = "When true, writes the generated RDS master password into an SSM parameter for debugging/demo."
 }
 
+############################################
+# Input — KMS key for SSM SecureString
+# Purpose: Optional KMS key ARN for SSM; empty = use default
+############################################
 variable "ssm_kms_key_id" {
   type        = string
-  default     = null
-  description = "KMS KeyId/ARN for encrypting SSM SecureString when writing DB password."
+  description = "KMS key ID or ARN for SSM SecureString parameters. Leave empty to use AWS-managed default key."
+  default     = ""
 
   validation {
-    condition = var.ssm_write_db_password ? (
-      var.ssm_kms_key_id != null && length(trimspace(var.ssm_kms_key_id)) > 0
-    ) : true
-    error_message = "When ssm_write_db_password=true, set non-empty ssm_kms_key_id (KeyId or full ARN)."
+    condition = var.ssm_kms_key_id == "" || can(
+      regex(
+        "^arn:aws:kms:[a-z0-9-]+:[0-9]{12}:key/[a-zA-Z0-9-]+",
+        var.ssm_kms_key_id
+      )
+    )
+
+    error_message = "If set, ssm_kms_key_id must be a valid KMS key ARN, for example: arn:aws:kms:us-east-1:111122223333:key/uuid"
   }
 }
 
