@@ -177,6 +177,7 @@ This repository includes a complete production-style documentation set:
 - **ADR-0004: Why RDS in a Private Subnet** — [`docs/adr/0004-why-rds-private-subnet.md`](./docs/adr/0004-why-rds-private-subnet.md)
 
 ### Runbooks (Operational Playbooks)
+- **Overview** — [`docs/runbooks/README.md`](./docs/runbooks/README.md)
 - **Wake Failure** — [`docs/runbooks/wake-failure.md`](./docs/runbooks/wake-failure.md)
 - **Destroy Not Triggered** — [`docs/runbooks/destroy-not-triggered.md`](./docs/runbooks/destroy-not-triggered.md)
 - **Rollback Procedure** — [`docs/runbooks/rollback.md`](./docs/runbooks/rollback.md)
