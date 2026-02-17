@@ -1,4 +1,4 @@
-
+y
 #  Ruslan AWS — Multi-Tier Infrastructure Demo
 
 <p align="center">
@@ -438,7 +438,10 @@ More real AWS, DevOps, IaC, and automation projects by **Ruslan AWS**.
 
 ## License
 
-Released under the MIT License.  
-See the LICENSE file for full details.
+This project is released under the MIT License.
 
+<<<<<<< HEAD
 Branding name “🚀 Ruslan AWS” and related visuals may not be reused or rebranded without permission.
+=======
+See the `LICENSE` file for details.
+>>>>>>> 79df254 (Refine README and update license)
