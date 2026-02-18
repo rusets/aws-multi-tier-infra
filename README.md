@@ -11,7 +11,6 @@
 </p>
 
  **Wait Page:** [https://app.multi-tier.space](https://app.multi-tier.space)  
- **Main App:** [https://multi-tier.space](https://multi-tier.space)
 
 I designed and built this fully automated, cost-optimized multi-tier AWS infrastructure to demonstrate production-grade Infrastructure as Code, CI/CD automation, and serverless orchestration patterns.
 
@@ -177,39 +176,11 @@ aws-multi-tier-infra/
 └── README.md           # Main project documentation
 ```
 
-**Full detailed structure:** see [`docs/architecture.md`](./docs/architecture.md)
-
 ---
 
-## 📘 Documentation
+## Documentation
 
-This repository includes a complete production-style documentation set:
-
-- **Architecture** — [`docs/architecture.md`](./docs/architecture.md)
-- **Cost Model** — [`docs/cost.md`](./docs/cost.md)
-- **SLO & Performance** — [`docs/slo.md`](./docs/slo.md)
-- **Monitoring Strategy** — [`docs/monitoring.md`](./docs/monitoring.md)
-- **Threat Model** — [`docs/threat-model.md`](./docs/threat-model.md)
-
-### ADR (Architectural Decisions)
-
-- **ADR-0001: Why Terraform** — [`docs/adr/0001-why-terraform.md`](./docs/adr/0001-why-terraform.md)  
-- **ADR-0002: Why OIDC Instead of IAM Users** — [`docs/adr/0002-why-oidc-instead-of-iam-users.md`](./docs/adr/0002-why-oidc-instead-of-iam-users.md)  
-- **ADR-0003: Wake/Sleep Architecture Choice** — [`docs/adr/0003-wake-sleep-architecture-choice.md`](./docs/adr/0003-wake-sleep-architecture-choice.md)  
-- **ADR-0004: Why RDS in a Private Subnet** — [`docs/adr/0004-why-rds-private-subnet.md`](./docs/adr/0004-why-rds-private-subnet.md)
-
-### Runbooks (Operational Playbooks)
-- **Overview** — [`docs/runbooks/README.md`](./docs/runbooks/README.md)
-- **Wake Failure** — [`docs/runbooks/wake-failure.md`](./docs/runbooks/wake-failure.md)
-- **Destroy Not Triggered** — [`docs/runbooks/destroy-not-triggered.md`](./docs/runbooks/destroy-not-triggered.md)
-- **Rollback Procedure** — [`docs/runbooks/rollback.md`](./docs/runbooks/rollback.md)
-
-### **Incidents**
-- **GitHub Token Expiration (Feb 2026)** — [`docs/incidents/2026-02-github-token-expiration.md`](./docs/incidents/2026-02/github-token-expiration.md)
-
-### Diagrams
-- **Architecture Diagram (Mermaid)** — [`docs/diagrams/architecture.md`](./docs/diagrams/architecture.md)
-- **Sequence Diagram (Mermaid)** — [`docs/diagrams/sequence.md`](./docs/diagrams/sequence.md)
+[Architecture](./docs/architecture.md) | [Cost](./docs/cost.md) | [SLO](./docs/slo.md) | [Monitoring](./docs/monitoring.md) | [ADRs](./docs/adr/) | [Runbooks](./docs/runbooks/) | [Incidents](./docs/incidents/)
 
 ---
 
