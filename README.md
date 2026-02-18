@@ -1,4 +1,4 @@
-y
+
 # AWS Multi-Tier Infrastructure — Wake/Sleep Platform
 
 <p align="center">
