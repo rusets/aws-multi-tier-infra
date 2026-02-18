@@ -1,38 +1,28 @@
 y
-#  Ruslan AWS — Multi-Tier Infrastructure Demo
+# AWS Multi-Tier Infrastructure — Wake/Sleep Platform
 
 <p align="center">
   <img src="https://img.shields.io/badge/Terraform-IaC-5C4EE5?logo=terraform" />
-  <img src="https://img.shields.io/badge/AWS-Cloud-F29100?logo=amazon-aws" />
-  <img src="https://img.shields.io/badge/GitHub_Actions-CI%2FCD-2088FF?logo=github-actions" />
-  <img src="https://img.shields.io/badge/Lambda-Serverless-FF9900?logo=awslambda" />
-  <img src="https://img.shields.io/badge/API_Gateway-Trigger-orange?logo=amazon-api-gateway" />
-  <img src="https://img.shields.io/badge/RDS-MySQL-527FFF?logo=amazon-rds" />
-  <img src="https://img.shields.io/badge/EC2-Compute-FF9900?logo=amazon-ec2" />
-  <img src="https://img.shields.io/badge/S3-Static_Site-569A31?logo=amazon-s3" />
-</p>
-
-<p align="center">
-  <img src="https://img.shields.io/badge/terraform-fmt%20✔-623CE4?logo=terraform" />
-  <img src="https://img.shields.io/badge/terraform-validate%20✔-623CE4?logo=terraform" />
-  <img src="https://img.shields.io/badge/tflint-clean%20✔-2D76FF?logo=terraform" />
-  <img src="https://img.shields.io/badge/tfsec-clean%20✔-FF4B4B?logo=trivy" />
-  <img src="https://img.shields.io/badge/checkov-clean%20✔-00A75A?logo=checkov" />
+  <img src="https://img.shields.io/badge/AWS-Multi--Tier-F29100?logo=amazon-aws" />
+  <img src="https://img.shields.io/badge/GitHub_Actions-OIDC_CI%2FCD-2088FF?logo=github-actions" />
+  <img src="https://img.shields.io/badge/Serverless-Lambda_+_API_Gateway-FF9900?logo=awslambda" />
+  <img src="https://img.shields.io/badge/IaC-Validated-623CE4?logo=terraform" />
+  <img src="https://img.shields.io/badge/Security-tfsec_+_checkov-00A75A?logo=checkov" />
 </p>
 
  **Wait Page:** [https://app.multi-tier.space](https://app.multi-tier.space)  
  **Main App:** [https://multi-tier.space](https://multi-tier.space)
 
-This project demonstrates a **fully automated, cost-optimized multi-tier infrastructure on AWS**, provisioned with **Terraform** and orchestrated through **GitHub Actions**.
+I designed and built this fully automated, cost-optimized multi-tier AWS infrastructure to demonstrate production-grade Infrastructure as Code, CI/CD automation, and serverless orchestration patterns.
 
 It includes:
 
-- **On-demand wake/sleep automation**  
-- **Serverless orchestration** using API Gateway, Lambda, and GitHub OIDC  
-- **Secure configuration and secret management** (SSM + Secrets Manager)  
-- **Full three-tier stack** with frontend, application layer, and database  
-- **Auto-destroy of idle resources** — environment exists only while needed, then tears down automatically  
-- **Static wait site** hosted on S3 + CloudFront, always available even when the environment sleeps  
+- **On-demand wake/sleep lifecycle**  
+- **Serverless control plane** powered by API Gateway, Lambda, and GitHub OIDC  
+- **Secure configuration and secrets management** using SSM Parameter Store and AWS Secrets Manager  
+- **Complete three-tier architecture** with frontend, application layer, and database  
+- **Automatic idle teardown** — the environment exists only when needed and destroys itself when inactive  
+- **Static wait site** hosted on S3 + CloudFront, always available even while compute resources are offline  
 
 ---
 
@@ -69,73 +59,105 @@ flowchart TD
 
 ---
 
-##  Key AWS Services Used
+## Key AWS Services Used
 
-| Service | Purpose |
+| Service | Role in Architecture |
 |---|---|
-| **Lambda** | Wake/Status automation, heartbeat, idle-reaper logic |
-| **API Gateway (HTTP)** | Public entrypoint for wake/status endpoints |
-| **EC2 (Amazon Linux 2023)** | Application compute layer for backend |
-| **Application Load Balancer (ALB)** | Routing, health checks, HTTPS termination |
-| **RDS MySQL (Private Subnets)** | Persistent database isolated from the public internet |
-| **S3 + CloudFront** | Static wait site for `app.multi-tier.space` |
-| **Route 53** | DNS management for both domains |
-| **SSM Parameter Store** | Runtime configuration + heartbeat timestamp |
-| **Secrets Manager** | GitHub token + AWS-managed RDS master password |
-| **DynamoDB** | Terraform state locking (safe applies/destroys) |
-| **IAM + OIDC** | Secure short-lived credentials for GitHub Actions |
-| **CloudWatch Logs** | Centralized logging for all Lambdas |
+| **AWS Lambda** | Control-plane logic (wake, status, heartbeat, idle reaper) |
+| **Amazon API Gateway (HTTP API)** | Public entry point for infrastructure lifecycle endpoints |
+| **Amazon EC2 (Amazon Linux 2023)** | Application compute layer (Node.js backend) |
+| **Application Load Balancer (ALB)** | Traffic routing, health checks, TLS termination |
+| **Amazon RDS (MySQL, Private Subnets)** | Isolated relational database layer |
+| **Amazon S3 + CloudFront** | Static wait site and global content delivery |
+| **Amazon Route 53** | DNS management for application and wait domains |
+| **AWS Systems Manager (SSM)** | Runtime configuration and lifecycle state tracking |
+| **AWS Secrets Manager** | Secure storage for GitHub token and RDS master credentials |
+| **Amazon DynamoDB** | Terraform state locking for safe concurrent operations |
+| **IAM + OIDC Federation** | Short-lived, keyless authentication for GitHub Actions |
+| **Amazon CloudWatch Logs** | Centralized logging and Lambda observability |
+---
+
+## Automation Reliability Note
+
+During development, the auto-destroy workflow stopped triggering after the configured idle timeout.
+
+The root cause was an expired GitHub Personal Access Token stored in AWS SSM.  
+The GitHub workflow dispatch request returned HTTP 401 (Bad credentials), preventing the `destroy` workflow from executing.
+
+Infrastructure logic and Terraform configuration were correct.  
+The failure occurred at the external GitHub API authentication boundary.
+
+After rotating the token and updating the SSM parameter, destroy automation resumed immediately.
+
+This incident highlights a critical dependency on external credential lifecycle management.
+
+In production, external authentication should not rely on manually rotated Personal Access Tokens.  
+A GitHub App with short-lived installation tokens or automated secret expiry monitoring would eliminate this single point of failure.
 
 ---
 
-##  Wake / Sleep Lifecycle
+## Scaling Stability Improvement
 
-The environment uses a **cost-optimized wake/sleep model**:
+During scaling events the application intermittently returned 502 errors.
 
-- When idle, only the **static wait page** remains online (S3 + CloudFront).  
-- When a user presses **“Wake up”**, API Gateway → Lambda → GitHub Actions triggers a full `terraform apply`.  
-- The stack provisions EC2, ALB, RDS, IAM, VPC networking, and bootstrap scripts.  
-- Once provisioning completes, the endpoint `https://multi-tier.space` becomes active and the “Open App” button unlocks.  
-- A heartbeat Lambda updates `/multi-tier-demo/last_wake` every minute.  
-- If no activity is detected, the Idle-Reaper Lambda triggers a `destroy` workflow.  
-- The stack returns to the lightweight **idle state**, costing nearly zero.
+Root cause analysis showed that ALB health checks validated process uptime only, while the application depended on active RDS connectivity. Instances were marked healthy before downstream dependencies were fully ready.
 
-**Lambdas involved:**
+Health checks were redesigned to validate true application readiness, aligning ALB behavior with Auto Scaling lifecycle.
 
-- `multi-tier-demo-wake` — triggers the GitHub Actions provision workflow  
-- `multi-tier-demo-status` — reports live state (ready / waking / idle)  
-- `multi-tier-demo-heartbeat` — updates last wake timestamp  
-- `multi-tier-demo-idle-reaper` — destroys environment after inactivity  
-
-This pattern allows the entire infrastructure to exist **only when needed**, and disappear completely when idle — ideal for demos, interviews, and credit-efficient cloud labs.
+Result: stable instance replacement, predictable scaling behavior, and elimination of cascading 502 errors.
 
 ---
 
-##  Application Layer — Notes App
+## Wake / Sleep Lifecycle
 
-This demo infrastructure hosts a lightweight **Notes App** built with a Node.js backend and a Bootstrap frontend.  
-It demonstrates how a full‑stack application can be deployed, managed, and automatically destroyed on demand.
+The platform implements an on-demand wake/sleep lifecycle to minimize idle cloud cost.
+
+- In idle state, only the static wait site remains online (S3 + CloudFront).
+- Pressing **Wake up** triggers API Gateway → Lambda → GitHub Actions → `terraform apply`.
+- Terraform provisions the full stack: VPC, IAM, EC2, ALB, RDS, and bootstrap configuration.
+- Once provisioning completes, `https://multi-tier.space` becomes available.
+- A heartbeat Lambda updates `/multi-tier-demo/last_wake` every minute.
+- After the configured idle threshold, the Idle-Reaper Lambda dispatches a `destroy` workflow.
+- Terraform removes all compute and database resources, returning the system to its lightweight idle state.
+
+### Control Plane Components
+
+- `multi-tier-demo-wake` — dispatches the GitHub Actions `apply` workflow  
+- `multi-tier-demo-status` — exposes current environment state (ready / waking / idle)  
+- `multi-tier-demo-heartbeat` — maintains lifecycle state in SSM  
+- `multi-tier-demo-idle-reaper` — dispatches `destroy` after inactivity threshold  
+
+This control-plane pattern separates orchestration from application logic and ensures that compute and database resources exist only while actively used.
+
+---
+
+## Application Layer — Notes App
+
+This infrastructure hosts a lightweight **Notes App** built with a Node.js backend and a Bootstrap frontend.  
+It illustrates how a full-stack application can be provisioned, operated, and automatically decommissioned within an event-driven cloud lifecycle.
 
 **Features:**
-- Add, list, and delete notes through a simple REST API.  
-- Frontend hosted on **S3 + CloudFront** (`https://app.multi-tier.space`).  
-- Requests routed via **ALB** with health checks.  
-- Data persisted in **Amazon RDS (MySQL)** located **in a private subnet** for enhanced security.  
-- After successful provisioning, the live app is served at **https://multi-tier.space**.
 
+- Add, list, and delete notes via a REST API  
+- Frontend delivered through **S3 + CloudFront** (`https://app.multi-tier.space`)  
+- Traffic routed through an **Application Load Balancer** with health checks  
+- Data persisted in **Amazon RDS (MySQL)** running in private subnets  
+- After provisioning, the live application is available at **https://multi-tier.space**
 ---
 
-###  Wait Page & Frontend Flow
+### Wait Page & Frontend Flow
 
-The static **wait page** (hosted on [https://app.multi-tier.space](https://app.multi-tier.space)) acts as a **control dashboard** for managing infrastructure state.
+The static **wait page** (hosted at https://app.multi-tier.space) functions as the control interface for infrastructure lifecycle management.
 
-When the system is idle, it remains online as a lightweight S3 + CloudFront site and provides:
-- A **“Wake up”** button that triggers the GitHub Actions pipeline via API Gateway → Lambda → Terraform apply.  
-- A **live progress bar** and **countdown timer** (≈12–15 minutes) indicating provisioning status.  
-- A **status indicator** that enables the **“Open App”** button once the backend environment is fully deployed.  
+While the system is idle, it remains online as a minimal S3 + CloudFront site and provides:
 
-Both `app.multi-tier.space` and `multi-tier.space` domains are managed via **Route 53** and integrated with CloudFront.  
-This design ensures **zero‑cost idle time** — compute resources (EC2, RDS, ALB) are active only while the app is awake, while the static wait‑site remains accessible 24/7.
+- A **Wake up** action that triggers API Gateway → Lambda → GitHub Actions → `terraform apply`  
+- A **provisioning progress indicator** (≈12–15 minutes) reflecting infrastructure state  
+- A **status gate** that enables the Open App button once the backend stack becomes available  
+
+Both `app.multi-tier.space` and `multi-tier.space` are managed through **Route 53** with CloudFront integration.
+
+This architecture keeps compute resources (EC2, ALB, RDS) active only during runtime, while the static layer remains continuously available with negligible cost footprint.
 
 ---
 
@@ -182,6 +204,9 @@ This repository includes a complete production-style documentation set:
 - **Destroy Not Triggered** — [`docs/runbooks/destroy-not-triggered.md`](./docs/runbooks/destroy-not-triggered.md)
 - **Rollback Procedure** — [`docs/runbooks/rollback.md`](./docs/runbooks/rollback.md)
 
+### **Incidents**
+- **GitHub Token Expiration (Feb 2026)** — [`docs/incidents/2026-02-github-token-expiration.md`](./docs/incidents/2026-02/github-token-expiration.md)
+
 ### Diagrams
 - **Architecture Diagram (Mermaid)** — [`docs/diagrams/architecture.md`](./docs/diagrams/architecture.md)
 - **Sequence Diagram (Mermaid)** — [`docs/diagrams/sequence.md`](./docs/diagrams/sequence.md)
@@ -202,16 +227,16 @@ This repository includes a complete production-style documentation set:
 
 ---
 
-##  Cost Optimization Principles
+## Cost Optimization Principles
 
-- Auto-destroy idle infrastructure via Idle-Reaper Lambda.  
-- Terraform backend in **S3 + DynamoDB** for safe, resumable deploys.    
-- Minimal EC2 and RDS footprint to stay within AWS credits.  
-- Database in **private subnets** with no public exposure.  
-- ALB health checks drive stability and cost-efficient uptime.  
-- DNS hosted in **Route 53**; GitHub OIDC replaces long-lived IAM keys.  
+- Automatic teardown of idle infrastructure via the Idle-Reaper Lambda  
+- Remote Terraform state stored in S3 with DynamoDB locking for safe, resumable operations  
+- Minimal EC2 and RDS sizing aligned with expected runtime load  
+- Database deployed in private subnets with no public exposure  
+- ALB health checks used to maintain stability without over-provisioning  
+- Route 53 DNS management and GitHub OIDC to eliminate long-lived IAM credentials  
 
-Estimated runtime cost: **<$1/day** when active; **~$0 when sleeping.**
+Estimated runtime cost: < $1 per day while active; near-zero while in idle state.
 
 ---
 
@@ -226,6 +251,7 @@ terraform destroy -auto-approve
 ```
 
 ### AWS CLI Checks
+
 ```bash
 aws ssm get-parameter --name /multi-tier-demo/last_wake --query 'Parameter.Value' --output text
 aws logs tail /aws/lambda/multi-tier-demo-idle-reaper --follow
@@ -235,15 +261,16 @@ aws lambda get-function-configuration --function-name multi-tier-demo-idle-reape
 
 ---
 
-##  Secrets Management
+## Secrets Management
 
-- Application DB master password is managed by **AWS RDS** via `manage_master_user_password`  
-  (stored in an AWS-managed secret in **Secrets Manager**, never in Terraform state).
-- GitHub token for wake/idle automation is stored in **AWS Secrets Manager** and referenced by name from Lambda.
-- Non-sensitive configuration (bucket names, ports, DB host/name, app port, artifact key, etc.) lives in  
-  **SSM Parameter Store** as plain `String` parameters.
-- Optional SSM `SecureString` parameters are available if you ever decide to self-manage database passwords,  
-  but they are **disabled by default** in this demo.
+- The database master password is managed by **Amazon RDS** using `manage_master_user_password`  
+  and stored automatically in **AWS Secrets Manager**, never exposed in Terraform state.
+- The GitHub token used for wake/sleep automation is stored in **AWS Secrets Manager**  
+  and referenced by name from the control-plane Lambda functions.
+- Non-sensitive configuration values (bucket names, ports, DB host/name, artifact keys, etc.)  
+  are stored in **SSM Parameter Store** as standard `String` parameters.
+- Optional `SecureString` parameters can be used for additional secret material if needed,  
+  but database credentials are fully AWS-managed by default.
 
 ---
 
@@ -305,10 +332,11 @@ Optimized for **AWS Free Tier / Credits**:
 
 ---
 
-##  Security Posture & Static Analysis
+## Security Posture & Static Analysis
 
-This project is not just “it works” Terraform – it is fully wired with static analysis and security tooling.  
-All high/critical findings are either **fixed** or **explicitly suppressed with justification** for this short-lived demo environment.
+This infrastructure is not just functional Terraform — it is continuously validated through static analysis and security tooling.
+
+All high and critical findings are either **remediated** or **explicitly suppressed with documented justification**, aligned with the intended lifecycle, cost model, and architectural scope of this environment.
 
 ### Tools & what they cover
 
@@ -325,12 +353,13 @@ All high/critical findings are either **fixed** or **explicitly suppressed with 
   - Example: `null_resource` usage backed by an explicit `null` provider in `required_providers`.
 
 - **tfsec**
-  - Run against the whole `infra` directory:
+  - Run against the entire `infra` directory:
     - `tfsec .`
-  - All critical issues are either fixed or suppressed inline where the “secure by default” recommendation conflicts with:
-    - **Cost** (e.g., Multi-AZ RDS, WAF, long log retention)
-    - **Demo lifetime** (stack is auto-destroyed shortly after use)
-    - **Simplicity for interviews** (focus on architecture patterns rather than enterprise add-ons).
+  - High and critical findings are either remediated or explicitly suppressed inline with justification.
+  - Suppressions are limited to cases where security best practices must be balanced against:
+    - **Cost constraints** (e.g., Multi-AZ RDS, WAF, extended log retention)
+    - **Ephemeral environment design** (stack is automatically destroyed after inactivity)
+    - **Architectural clarity** (keeping the platform readable and explainable without unnecessary enterprise add-ons)
 
 - **Checkov**
   - Run as:
@@ -340,59 +369,58 @@ All high/critical findings are either **fixed** or **explicitly suppressed with 
     - Tagged with an inline `#checkov:skip=…` on the exact resource
     - Accompanied by a short, honest justification in English.
 
-### Where we consciously accept trade-offs
+### Where Trade-Offs Are Intentionally Accepted
 
-This is a **short-lived demo stack** in an isolated AWS account, optimized for:
-- Low cost
-- Easy tear-down from CI/CD
-- Maximum readability for interviews
+This environment is designed as a short-lived, cost-controlled stack in an isolated AWS account, optimized for:
 
-Because of that, some “paranoid defaults” are intentionally relaxed and clearly documented:
+- Cost efficiency  
+- Deterministic CI/CD teardown  
+- Architectural clarity and interview readability  
+
+As a result, some enterprise-grade defaults are intentionally relaxed and explicitly documented.
 
 - **S3 (assets + logs)**
-  - No cross-region replication (Checkov CKV_AWS_144 skipped) – not needed for demo data.
-  - SSE-S3 (AES256) instead of KMS CMK (CKV_AWS_145 skipped) – avoids extra KMS complexity and cost.
-  - No event notifications (CKV2_AWS_62 skipped) – this project doesn’t react to S3 events.
+  - No cross-region replication (Checkov CKV_AWS_144 skipped) — not required for non-critical assets.
+  - SSE-S3 (AES256) instead of KMS CMK (CKV_AWS_145 skipped) — avoids additional KMS cost and complexity.
+  - No event notifications (CKV2_AWS_62 skipped) — no event-driven S3 workflows in scope.
 
 - **RDS instance**
-  - Single-AZ, no Multi-AZ (CKV_AWS_157 skipped) – cheaper and sufficient for demo traffic.
-  - Deletion protection disabled (CKV_AWS_293 skipped) – CI/CD must be able to destroy the stack automatically.
-  - Query logging + enhanced monitoring disabled (CKV2_AWS_30, CKV_AWS_129, CKV_AWS_118 skipped) – detailed DB telemetry is overkill for a disposable environment.
+  - Single-AZ deployment (CKV_AWS_157 skipped) — sufficient for non-production traffic.
+  - Deletion protection disabled (CKV_AWS_293 skipped) — required for automated CI/CD destroy workflows.
+  - Query logging and enhanced monitoring disabled (CKV2_AWS_30, CKV_AWS_129, CKV_AWS_118 skipped) — deep telemetry not justified for ephemeral infrastructure.
 
 - **Application Load Balancer**
-  - No WAF attached (CKV2_AWS_28 skipped) – would require extra resources and configuration for a simple demo.
-  - No access logging to S3 (CKV_AWS_91 skipped) – avoids extra buckets and log storage cost.
-  - Deletion protection disabled (CKV_AWS_150 skipped) – again, CI/CD auto-destroy is a first-class requirement.
+  - No WAF integration (CKV2_AWS_28 skipped) — outside scope of a lightweight infrastructure showcase.
+  - No access logging to S3 (CKV_AWS_91 skipped) — avoids additional storage and bucket management overhead.
+  - Deletion protection disabled (CKV_AWS_150 skipped) — aligned with automated teardown requirements.
 
-- **VPC Flow Logs & Lambda log groups**
+- **VPC Flow Logs & Lambda Log Groups**
   - Short log retention and default CloudWatch encryption (CKV_AWS_338, CKV_AWS_158 skipped):
-    - Just enough to debug,
-    - Not enough to accumulate a long-term bill.
+    - Retention is sufficient for troubleshooting,
+    - Not configured for long-term archival.
 
 - **SSM Parameters**
   - Non-secret values (bucket names, ports, DB host, DB name, etc.) are stored as plain `String`.
   - Checkov rule `CKV2_AWS_34` is skipped for those parameters – secrets stay in AWS-managed places (RDS, Secrets Manager), config stays readable in SSM.
 
 - **Lambda functions (wake, idle_reaper, status)**
-  - Not placed in a VPC (CKV_AWS_117 skipped) – they only reach public endpoints (GitHub, public ALB), so VPC ENIs would add cost and cold-start latency without adding real security here.
-  - No DLQ (CKV_AWS_116 skipped) – functions are idempotent and safe to fail (wake/status polling).
-  - Env encryption, code signing, X-Ray tracing are disabled and explicitly skipped (CKV_AWS_173, CKV_AWS_272, CKV_AWS_50) to keep the functions simple and cheap for a demo.
+  - Not attached to a VPC (CKV_AWS_117 skipped) — functions interact only with public endpoints (GitHub API, public ALB). Attaching ENIs would introduce additional cost and cold-start latency without materially improving the security posture in this architecture.
+  - No DLQ configured (CKV_AWS_116 skipped) — functions are idempotent and safe to retry or fail without state corruption.
+  - Environment encryption, code signing, and X-Ray tracing disabled (CKV_AWS_173, CKV_AWS_272, CKV_AWS_50 skipped) — intentionally omitted to preserve simplicity and minimize operational overhead for this short-lived environment.
 
-- **IAM for idle reaper**
-  - One policy document uses a wildcard for `ssm:GetParameter` to read a heartbeat value.
-  - Checkov rules `CKV_AWS_108` and `CKV_AWS_356` are skipped with a clear comment:
-    - Access is limited to an isolated demo account,
-    - The goal is to keep the policy easy to read/explain in interviews.
+- **IAM policy design (idle reaper)**
+  - A narrowly scoped wildcard is used for `ssm:GetParameter` to read the heartbeat value.
+  - Checkov rules `CKV_AWS_108` and `CKV_AWS_356` are skipped with explicit justification:
+    - Access is confined to an isolated AWS account.
+    - Policy readability and explainability are prioritized for architectural clarity.
 
 ### Summary
 
-- All Terraform code is **linted and formatted**.
-- All security scanners (**tfsec + Checkov**) are **green**:
-  - No silent misconfigurations,
-  - All intentional deviations are **documented inline**.
-- The end result is a **realistic, interview-friendly AWS demo**:
-  - Strong enough to show you understand security,
-  - Pragmatic enough to stay cheap, disposable, and easy to reason about.
+- All Terraform code is linted, formatted, and validated.
+- Static analysis tooling (tfsec, Checkov, TFLint) reports no unresolved high or critical findings.
+- Every intentional deviation from strict enterprise defaults is documented inline with rationale.
+
+The result is a production-style infrastructure design that balances security awareness, cost control, and operational clarity.
 
 ---
 
@@ -426,13 +454,6 @@ Heartbeat Lambda updates `last_wake` every minute via SSM.
 ###  GitHub Actions — Infra Pipeline Runs
 Shows apply/destroy workflows triggered by wake/sleep automation.
 ![gha-runs](./docs/screens/gha-runs.png)
-
----
-
-## **Author & Portfolio**
-
-Portfolio website: https://rusets.com  
-More real AWS, DevOps, IaC, and automation projects by **Ruslan AWS**.
 
 ---
 
